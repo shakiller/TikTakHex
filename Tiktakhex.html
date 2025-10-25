@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Гексагональные Крестики-Нолики</title>
+    <style>
+        /* Все предыдущие стили остаются без изменений */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 {
+            color: white;
+            margin-bottom: 20px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .settings {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .setting-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        select, button {
+            padding: 8px 15px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 1em;
+        }
+
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+
+        .game-info {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .players {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+        }
+
+        .player {
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1.2em;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+            position: relative;
+        }
+
+        .player.active {
+            background: #4CAF50;
+            color: white;
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+        }
+
+        .player-x { border-left: 4px solid #FF5252; }
+        .player-o { border-left: 4px solid #2196F3; }
+
+        .player-bot::after {
+            content: "🤖";
+            margin-left: 8px;
+            font-size: 0.8em;
+        }
+
+        .score {
+            font-size: 1.5em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .control-btn {
+            background: #FF5252;
+            padding: 12px 25px;
+            border-radius: 25px;
+            box-shadow: 0 4px 15px rgba(255, 82, 82, 0.3);
+        }
+
+        .control-btn:hover {
+            box-shadow: 0 6px 20px rgba(255, 82, 82, 0.4);
+        }
+
+        #resetBtn {
+            background: #2196F3;
+            box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
+        }
+
+        #resetBtn:hover {
+            box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4);
+        }
+
+        #gameBoard {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            overflow: auto;
+            max-width: 100%;
+            position: relative;
+        }
+
+        canvas {
+            display: block;
+            margin: 0 auto;
+            cursor: pointer;
+            border: 2px solid #ddd;
+            background: white;
+        }
+
+        .win-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            color: white;
+            padding: 20px 40px;
+            border-radius: 15px;
+            font-size: 1.5em;
+            font-weight: bold;
+            text-align: center;
+            z-index: 100;
+            display: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 3px solid gold;
+        }
+
+        .win-message.show {
+            display: block;
+            animation: popIn 0.5s ease-out;
+        }
+
+        @keyframes popIn {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+
+        .instructions {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .difficulty-info {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        .game-mode {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .mode-btn {
+            background: #6c757d;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+
+        .mode-btn.active {
+            background: #4CAF50;
+        }
+
+        .bot-thinking {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background: #ffc107;
+            color: #333;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.7; }
+            50% { opacity: 1; }
+            100% { opacity: 0.7; }
+        }
+
+        .debug-info {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-size: 0.8em;
+            color: #666;
+        }
+
+        .continue-btn {
+            background: gold;
+            color: #333;
+            border: none;
+            padding: 10px 20px;
+            margin-top: 15px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .continue-btn:hover {
+            background: #ffd700;
+            transform: scale(1.05);
+        }
+
+        .win-cells-info {
+            font-size: 0.7em;
+            margin-top: 10px;
+            color: #ccc;
+            font-family: monospace;
+        }
+
+        .coord-display {
+            font-size: 0.7em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .bot-difficulty {
+            margin-top: 10px;
+        }
+
+        .difficulty-btn {
+            background: #6c757d;
+            padding: 8px 15px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            margin: 0 5px;
+        }
+
+        .difficulty-btn.active {
+            background: #2196F3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Гексагональные Крестики-Нолики</h1>
+        
+        <div class="settings">
+            <div class="setting-group">
+                <label>Размер поля:</label>
+                <select id="boardSizeSelect">
+                    <option value="4">4x4 (Простой)</option>
+                    <option value="5" selected>5x5 (Средний)</option>
+                    <option value="6">6x6 (Сложный)</option>
+                    <option value="7">7x7 (Эксперт)</option>
+                </select>
+            </div>
+            <div class="setting-group">
+                <label>Длина линии:</label>
+                <select id="winLengthSelect">
+                    <option value="3">3 в ряд</option>
+                    <option value="4" selected>4 в ряд</option>
+                    <option value="5">5 в ряд</option>
+                </select>
+            </div>
+            <button id="applySettings">Применить настройки</button>
+        </div>
+        
+        <div class="game-info">
+            <div class="game-mode">
+                <button class="mode-btn active" id="modePvP">👥 Игрок vs Игрок</button>
+                <button class="mode-btn" id="modePvE">🤖 Игрок vs Бот</button>
+            </div>
+            
+            <div class="bot-difficulty" id="botDifficulty" style="display: none;">
+                <label>Сложность бота:</label>
+                <button class="difficulty-btn active" data-depth="2">Легкий</button>
+                <button class="difficulty-btn" data-depth="3">Средний</button>
+                <button class="difficulty-btn" data-depth="4">Сложный</button>
+            </div>
+            
+            <div class="players">
+                <div class="player player-x" id="playerX">
+                    Игрок X
+                    <div class="score" id="scoreX">0</div>
+                </div>
+                <div class="player player-o" id="playerO">
+                    Игрок O
+                    <div class="score" id="scoreO">0</div>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <button class="control-btn" id="newGameBtn">Новая игра</button>
+                <button class="control-btn" id="resetBtn">Сбросить счёт</button>
+            </div>
+        </div>
+
+        <div id="gameBoard">
+            <canvas id="gameCanvas" width="600" height="600"></canvas>
+            <div class="win-message" id="winMessage">
+                <div id="winText"></div>
+                <div id="winCellsInfo" class="win-cells-info"></div>
+                <button class="continue-btn" id="continueBtn">Продолжить</button>
+            </div>
+            <div class="debug-info" id="debugInfo">
+                Размер поля: 5x5 | Размер шестиугольника: 40px
+            </div>
+        </div>
+
+        <div class="instructions">
+            <p>Соберите линию из <span id="currentWinLength">4</span> фигур в одном из 3 направлений гексагональной сетки!</p>
+            <p class="difficulty-info" id="difficultyInfo">Текущая сложность: Средний (5x5, линия из 4)</p>
+        </div>
+    </div>
+
+    <script>
+        class HexagonalTicTacToe {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.winMessage = document.getElementById('winMessage');
+                this.winText = document.getElementById('winText');
+                this.winCellsInfo = document.getElementById('winCellsInfo');
+                this.debugInfo = document.getElementById('debugInfo');
+                
+                // Настройки по умолчанию
+                this.boardSize = 5;
+                this.winLength = 4;
+                this.gameMode = 'pvp';
+                this.botDifficulty = 3; // Глубина поиска для бота
+                
+                // Игровое состояние
+                this.board = [];
+                this.currentPlayer = 'X';
+                this.gameOver = false;
+                this.scores = { X: 0, O: 0 };
+                this.botThinking = false;
+                this.winningLine = null;
+                
+                this.initializeGame();
+                this.setupEventListeners();
+            }
+            
+            initializeGame() {
+                console.log('Инициализация игры с размером:', this.boardSize);
+                
+                // Сбрасываем игровое поле
+                this.board = Array(this.boardSize).fill().map(() => Array(this.boardSize).fill(''));
+                this.currentPlayer = 'X';
+                this.gameOver = false;
+                this.botThinking = false;
+                this.winningLine = null;
+                this.winMessage.classList.remove('show');
+                
+                this.updatePlayerDisplay();
+                this.updateCanvasSize();
+                this.drawBoard();
+                this.updateDebugInfo();
+                
+                // Если игра против бота и бот ходит первым
+                if (this.gameMode === 'pve' && this.currentPlayer === 'O') {
+                    setTimeout(() => this.makeBotMove(), 500);
+                }
+            }
+            
+            updateCanvasSize() {
+                const hexSize = this.getHexSize();
+                const hexHeight = hexSize * Math.sqrt(3);
+                const hexWidth = hexSize * 2;
+                
+                // Вычисляем необходимые размеры canvas
+                const canvasWidth = this.boardSize * hexWidth * 0.75 + hexWidth;
+                const canvasHeight = this.boardSize * hexHeight + hexHeight;
+                
+                console.log('Новые размеры canvas:', canvasWidth, canvasHeight);
+                
+                // Устанавливаем размеры canvas
+                this.canvas.width = canvasWidth;
+                this.canvas.height = canvasHeight;
+                
+                this.drawBoard();
+            }
+            
+            getHexSize() {
+                // Определяем размер шестиугольника в зависимости от размера поля
+                const sizes = {4: 50, 5: 40, 6: 35, 7: 30};
+                return sizes[this.boardSize] || 40;
+            }
+            
+            setupEventListeners() {
+                this.canvas.addEventListener('click', (e) => this.handleClick(e));
+                document.getElementById('newGameBtn').addEventListener('click', () => this.initializeGame());
+                document.getElementById('resetBtn').addEventListener('click', () => this.resetScores());
+                document.getElementById('applySettings').addEventListener('click', () => this.applySettings());
+                document.getElementById('modePvP').addEventListener('click', () => this.setGameMode('pvp'));
+                document.getElementById('modePvE').addEventListener('click', () => this.setGameMode('pve'));
+                document.getElementById('continueBtn').addEventListener('click', () => this.initializeGame());
+                
+                // Настройки сложности бота
+                document.querySelectorAll('.difficulty-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        document.querySelectorAll('.difficulty-btn').forEach(b => b.classList.remove('active'));
+                        e.target.classList.add('active');
+                        this.botDifficulty = parseInt(e.target.dataset.depth);
+                    });
+                });
+            }
+            
+            setGameMode(mode) {
+                this.gameMode = mode;
+                this.updateGameModeDisplay();
+                this.initializeGame();
+            }
+            
+            updateGameModeDisplay() {
+                const pvpBtn = document.getElementById('modePvP');
+                const pveBtn = document.getElementById('modePvE');
+                const botDifficulty = document.getElementById('botDifficulty');
+                const playerO = document.getElementById('playerO');
+                
+                pvpBtn.classList.toggle('active', this.gameMode === 'pvp');
+                pveBtn.classList.toggle('active', this.gameMode === 'pve');
+                botDifficulty.style.display = this.gameMode === 'pve' ? 'block' : 'none';
+                
+                if (this.gameMode === 'pve') {
+                    playerO.classList.add('player-bot');
+                    playerO.querySelector('div:first-child').textContent = 'Бот O';
+                } else {
+                    playerO.classList.remove('player-bot');
+                    playerO.querySelector('div:first-child').textContent = 'Игрок O';
+                }
+            }
+            
+            applySettings() {
+                const newSize = parseInt(document.getElementById('boardSizeSelect').value);
+                const newWinLength = parseInt(document.getElementById('winLengthSelect').value);
+                
+                console.log('Применяем настройки:', newSize, newWinLength);
+                
+                if (newWinLength > newSize) {
+                    alert(`Длина линии не может быть больше размера поля! Максимум для поля ${newSize}x${newSize}: ${newSize} в ряд`);
+                    return;
+                }
+                
+                this.boardSize = newSize;
+                this.winLength = newWinLength;
+                
+                this.updateDifficultyInfo();
+                this.initializeGame();
+            }
+            
+            updateDifficultyInfo() {
+                const sizeNames = {'4': 'Простой', '5': 'Средний', '6': 'Сложный', '7': 'Эксперт'};
+                document.getElementById('currentWinLength').textContent = this.winLength;
+                document.getElementById('difficultyInfo').textContent = 
+                    `Текущая сложность: ${sizeNames[this.boardSize]} (${this.boardSize}x${this.boardSize}, линия из ${this.winLength})`;
+            }
+            
+            updateDebugInfo() {
+                const hexSize = this.getHexSize();
+                this.debugInfo.textContent = `Размер поля: ${this.boardSize}x${this.boardSize} | Размер шестиугольника: ${hexSize}px`;
+            }
+            
+            handleClick(event) {
+                if (this.gameOver || this.botThinking) return;
+                if (this.gameMode === 'pve' && this.currentPlayer === 'O') return;
+                
+                const rect = this.canvas.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+                
+                const hex = this.getHexAtPosition(x, y);
+                if (hex && this.board[hex.row][hex.col] === '') {
+                    this.makeMove(hex.row, hex.col);
+                    
+                    if (this.gameMode === 'pve' && !this.gameOver && this.currentPlayer === 'O') {
+                        this.botThinking = true;
+                        this.updatePlayerDisplay();
+                        setTimeout(() => this.makeBotMove(), 800);
+                    }
+                }
+            }
+            
+            getHexAtPosition(x, y) {
+                const hexSize = this.getHexSize();
+                const hexHeight = hexSize * Math.sqrt(3);
+                const hexWidth = hexSize * 2;
+                
+                const gridX = Math.floor(x / (hexWidth * 0.75));
+                const gridY = Math.floor((y - (gridX % 2) * hexHeight / 2) / hexHeight);
+                
+                for (let row = Math.max(0, gridY - 1); row <= Math.min(this.boardSize - 1, gridY + 1); row++) {
+                    for (let col = Math.max(0, gridX - 1); col <= Math.min(this.boardSize - 1, gridX + 1); col++) {
+                        const hexX = col * hexWidth * 0.75 + hexWidth / 2;
+                        const hexY = row * hexHeight + (col % 2) * hexHeight / 2 + hexHeight / 2;
+                        
+                        if (this.isPointInHex(x, y, hexX, hexY, hexSize, hexHeight)) {
+                            return { row, col };
+                        }
+                    }
+                }
+                return null;
+            }
+            
+            isPointInHex(x, y, hexX, hexY, hexSize, hexHeight) {
+                const dx = Math.abs(x - hexX);
+                const dy = Math.abs(y - hexY);
+                
+                if (dx > hexSize || dy > hexHeight / 2) return false;
+                return (hexHeight * hexSize - hexHeight * dx - hexSize * dy) >= 0;
+            }
+            
+            makeMove(row, col) {
+                console.log(`Ход: игрок ${this.currentPlayer} в [${row},${col}]`);
+                this.board[row][col] = this.currentPlayer;
+                
+                const winResult = this.checkWin();
+                if (winResult) {
+                    this.winningLine = winResult;
+                    this.handleWin();
+                } else if (this.isBoardFull()) {
+                    this.handleDraw();
+                } else {
+                    this.currentPlayer = this.currentPlayer === 'X' ? 'O' : 'X';
+                    this.updatePlayerDisplay();
+                }
+                
+                this.drawBoard();
+            }
+            
+            // КУБИЧЕСКИЕ КООРДИНАТЫ ДЛЯ ГЕКСАГОНАЛЬНОЙ СЕТКИ
+            toCube(row, col) {
+                const q = col;
+                const r = row - Math.floor(col / 2);
+                const s = -q - r;
+                return { q, r, s };
+            }
+            
+            fromCube(cube) {
+                const col = cube.q;
+                const row = cube.r + Math.floor(cube.q / 2);
+                return { row, col };
+            }
+            
+            cubeAdd(cube1, cube2) {
+                return {
+                    q: cube1.q + cube2.q,
+                    r: cube1.r + cube2.r,
+                    s: cube1.s + cube2.s
+                };
+            }
+            
+            cubeScale(cube, factor) {
+                return {
+                    q: cube.q * factor,
+                    r: cube.r * factor,
+                    s: cube.s * factor
+                };
+            }
+            
+            // ПРАВИЛЬНАЯ ПРОВЕРКА ПОБЕДЫ С КУБИЧЕСКИМИ КООРДИНАТАМИ
+            checkWin() {
+                const directions = [
+                    { q: 1, r: 0, s: -1 },
+                    { q: 1, r: -1, s: 0 },
+                    { q: 0, r: -1, s: 1 },
+                    { q: -1, r: 0, s: 1 },
+                    { q: -1, r: 1, s: 0 },
+                    { q: 0, r: 1, s: -1 }
+                ];
+                
+                for (let row = 0; row < this.boardSize; row++) {
+                    for (let col = 0; col < this.boardSize; col++) {
+                        const player = this.board[row][col];
+                        if (player === '') continue;
+                        
+                        const startCube = this.toCube(row, col);
+                        
+                        for (const direction of directions) {
+                            const line = this.checkLineInCubeDirection(startCube, direction, player);
+                            if (line && line.length >= this.winLength) {
+                                return line;
+                            }
+                        }
+                    }
+                }
+                return null;
+            }
+            
+            checkLineInCubeDirection(startCube, direction, player) {
+                const line = [this.fromCube(startCube)];
+                
+                // Проверяем в прямом направлении
+                let current = { ...startCube };
+                while (true) {
+                    current = this.cubeAdd(current, direction);
+                    const pos = this.fromCube(current);
+                    if (!this.isValid(pos.row, pos.col) || this.board[pos.row][pos.col] !== player) break;
+                    line.push(pos);
+                }
+                
+                // Проверяем в обратном направлении
+                current = { ...startCube };
+                while (true) {
+                    current = this.cubeAdd(current, this.cubeScale(direction, -1));
+                    const pos = this.fromCube(current);
+                    if (!this.isValid(pos.row, pos.col) || this.board[pos.row][pos.col] !== player) break;
+                    line.unshift(pos);
+                }
+                
+                return line.length >= this.winLength ? line : null;
+            }
+            
+            isValid(row, col) {
+                return row >= 0 && row < this.boardSize && col >= 0 && col < this.boardSize;
+            }
+            
+            isBoardFull() {
+                for (let row = 0; row < this.boardSize; row++) {
+                    for (let col = 0; col < this.boardSize; col++) {
+                        if (this.board[row][col] === '') return false;
+                    }
+                }
+                return true;
+            }
+            
+            // УМНЫЙ БОТ С МИНИМАКС-АЛГОРИТМОМ
+            makeBotMove() {
+                if (this.gameOver) return;
+                
+                console.log(`Бот думает (сложность: ${this.botDifficulty})...`);
+                
+                // Для маленьких досок используем полный перебор, для больших - эвристики
+                let move;
+                if (this.boardSize <= 5) {
+                    move = this.minimax(this.botDifficulty, -Infinity, Infinity, 'O').move;
+                } else {
+                    move = this.findSmartMove();
+                }
+                
+                if (move) {
+                    this.makeMove(move.row, move.col);
+                }
+                this.botThinking = false;
+                this.updatePlayerDisplay();
+            }
+            
+            // Минимакс алгоритм с альфа-бета отсечением
+            minimax(depth, alpha, beta, player) {
+                // Проверяем терминальные состояния
+                const win = this.checkWin();
+                if (win) {
+                    return { score: (win[0].player === 'O' ? 100 : -100) * (depth + 1) };
+                }
+                
+                if (this.isBoardFull() || depth === 0) {
+                    return { score: this.evaluateBoard() };
+                }
+                
+                let bestScore = player === 'O' ? -Infinity : Infinity;
+                let bestMove = null;
+                
+                const moves = this.getPossibleMoves();
+                
+                for (const move of moves) {
+                    // Делаем ход
+                    this.board[move.row][move.col] = player;
+                    
+                    // Рекурсивно оцениваем позицию
+                    const result = this.minimax(depth - 1, alpha, beta, player === 'O' ? 'X' : 'O');
+                    
+                    // Отменяем ход
+                    this.board[move.row][move.col] = '';
+                    
+                    if (player === 'O') {
+                        // Максимизируем для бота
+                        if (result.score > bestScore) {
+                            bestScore = result.score;
+                            bestMove = move;
+                        }
+                        alpha = Math.max(alpha, bestScore);
+                    } else {
+                        // Минимизируем для игрока
+                        if (result.score < bestScore) {
+                            bestScore = result.score;
+                            bestMove = move;
+                        }
+                        beta = Math.min(beta, bestScore);
+                    }
+                    
+                    // Альфа-бета отсечение
+                    if (beta <= alpha) break;
+                }
+                
+                return { score: bestScore, move: bestMove };
+            }
+            
+            // Эвристическая оценка доски
+            evaluateBoard() {
+                let score = 0;
+                
+                // Оцениваем все возможные линии
+                for (let row = 0; row < this.boardSize; row++) {
+                    for (let col = 0; col < this.boardSize; col++) {
+                        if (this.board[row][col] !== '') {
+                            const player = this.board[row][col];
+                            const multiplier = player === 'O' ? 1 : -1;
+                            
+                            // Оценка основана на длине потенциальных линий
+                            score += this.evaluatePosition(row, col) * multiplier;
+                        }
+                    }
+                }
+                
+                return score;
+            }
+            
+            // Оценка позиции для одного игрока
+            evaluatePosition(row, col) {
+                const player = this.board[row][col];
+                if (player === '') return 0;
+                
+                let score = 0;
+                const directions = [
+                    { q: 1, r: 0, s: -1 }, { q: 1, r: -1, s: 0 }, { q: 0, r: -1, s: 1 },
+                    { q: -1, r: 0, s: 1 }, { q: -1, r: 1, s: 0 }, { q: 0, r: 1, s: -1 }
+                ];
+                
+                for (const dir of directions) {
+                    const lineLength = this.getLineLengthInDirection(row, col, dir, player);
+                    if (lineLength >= this.winLength - 1) {
+                        score += 10 * lineLength;
+                    } else if (lineLength >= this.winLength - 2) {
+                        score += 5 * lineLength;
+                    } else {
+                        score += lineLength;
+                    }
+                }
+                
+                return score;
+            }
+            
+            getLineLengthInDirection(row, col, direction, player) {
+                const startCube = this.toCube(row, col);
+                let length = 1;
+                
+                // Проверяем в прямом направлении
+                let current = { ...startCube };
+                while (true) {
+                    current = this.cubeAdd(current, direction);
+                    const pos = this.fromCube(current);
+                    if (!this.isValid(pos.row, pos.col) || this.board[pos.row][pos.col] !== player) break;
+                    length++;
+                }
+                
+                // Проверяем в обратном направлении
+                current = { ...startCube };
+                while (true) {
+                    current = this.cubeAdd(current, this.cubeScale(direction, -1));
+                    const pos = this.fromCube(current);
+                    if (!this.isValid(pos.row, pos.col) || this.board[pos.row][pos.col] !== player) break;
+                    length++;
+                }
+                
+                return length;
+            }
+            
+            getPossibleMoves() {
+                const moves = [];
+                const center = Math.floor(this.boardSize / 2);
+                
+                // Сначала рассматриваем ходы ближе к центру
+                for (let distance = 0; distance < this.boardSize; distance++) {
+                    for (let row = 0; row < this.boardSize; row++) {
+                        for (let col = 0; col < this.boardSize; col++) {
+                            const distFromCenter = Math.abs(row - center) + Math.abs(col - center);
+                            if (distFromCenter === distance && this.board[row][col] === '') {
+                                moves.push({ row, col, priority: distance });
+                            }
+                        }
+                    }
+                }
+                
+                return moves.sort((a, b) => a.priority - b.priority);
+            }
+            
+            // Упрощенный алгоритм для больших досок
+            findSmartMove() {
+                const moves = this.getPossibleMoves();
+                
+                // 1. Проверяем выигрышный ход
+                for (const move of moves) {
+                    this.board[move.row][move.col] = 'O';
+                    if (this.checkWin()) {
+                        this.board[move.row][move.col] = '';
+                        return move;
+                    }
+                    this.board[move.row][move.col] = '';
+                }
+                
+                // 2. Блокируем выигрышный ход игрока
+                for (const move of moves) {
+                    this.board[move.row][move.col] = 'X';
+                    if (this.checkWin()) {
+                        this.board[move.row][move.col] = '';
+                        return move;
+                    }
+                    this.board[move.row][move.col] = '';
+                }
+                
+                // 3. Выбираем лучший ход по эвристике
+                let bestScore = -Infinity;
+                let bestMove = moves[0];
+                
+                for (const move of moves.slice(0, 10)) { // Ограничиваем поиск для скорости
+                    this.board[move.row][move.col] = 'O';
+                    const score = this.evaluateBoard();
+                    this.board[move.row][move.col] = '';
+                    
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestMove = move;
+                    }
+                }
+                
+                return bestMove;
+            }
+            
+            handleWin() {
+                this.gameOver = true;
+                this.scores[this.currentPlayer]++;
+                this.updateScores();
+                
+                const winner = this.gameMode === 'pve' && this.currentPlayer === 'O' ? 'Бот' : `Игрок ${this.currentPlayer}`;
+                this.winText.textContent = `${winner} победил! 🎉`;
+                
+                const cellsInfo = this.winningLine.map(cell => `[${cell.row},${cell.col}]`).join(' → ');
+                this.winCellsInfo.textContent = `Выигрышная линия: ${cellsInfo}`;
+                
+                this.winMessage.classList.add('show');
+            }
+            
+            handleDraw() {
+                this.gameOver = true;
+                this.winText.textContent = 'Ничья! 🤝';
+                this.winCellsInfo.textContent = '';
+                this.winMessage.classList.add('show');
+            }
+            
+            resetScores() {
+                this.scores = { X: 0, O: 0 };
+                this.updateScores();
+                this.initializeGame();
+            }
+            
+            updatePlayerDisplay() {
+                const playerX = document.getElementById('playerX');
+                const playerO = document.getElementById('playerO');
+                
+                playerX.classList.toggle('active', this.currentPlayer === 'X' && !this.botThinking);
+                playerO.classList.toggle('active', this.currentPlayer === 'O' && !this.botThinking);
+                
+                let botIndicator = playerO.querySelector('.bot-thinking');
+                if (this.botThinking && this.currentPlayer === 'O' && this.gameMode === 'pve') {
+                    if (!botIndicator) {
+                        botIndicator = document.createElement('div');
+                        botIndicator.className = 'bot-thinking';
+                        botIndicator.textContent = 'думает...';
+                        playerO.appendChild(botIndicator);
+                    }
+                } else if (botIndicator) {
+                    botIndicator.remove();
+                }
+            }
+            
+            updateScores() {
+                document.getElementById('scoreX').textContent = this.scores.X;
+                document.getElementById('scoreO').textContent = this.scores.O;
+            }
+            
+            drawBoard() {
+                const hexSize = this.getHexSize();
+                const hexHeight = hexSize * Math.sqrt(3);
+                const hexWidth = hexSize * 2;
+                
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                for (let row = 0; row < this.boardSize; row++) {
+                    for (let col = 0; col < this.boardSize; col++) {
+                        const x = col * hexWidth * 0.75 + hexWidth / 2;
+                        const y = row * hexHeight + (col % 2) * hexHeight / 2 + hexHeight / 2;
+                        this.drawHex(x, y, hexSize, this.board[row][col], row, col);
+                    }
+                }
+                
+                if (this.winningLine) {
+                    this.drawWinningLine();
+                }
+            }
+            
+            drawHex(x, y, hexSize, value, row, col) {
+                this.ctx.beginPath();
+                for (let i = 0; i < 6; i++) {
+                    const angle = Math.PI / 3 * i;
+                    const hexX = x + hexSize * Math.cos(angle);
+                    const hexY = y + hexSize * Math.sin(angle);
+                    if (i === 0) this.ctx.moveTo(hexX, hexY);
+                    else this.ctx.lineTo(hexX, hexY);
+                }
+                this.ctx.closePath();
+                
+                this.ctx.fillStyle = '#f8f9fa';
+                this.ctx.fill();
+                this.ctx.strokeStyle = '#ddd';
+                this.ctx.lineWidth = 2;
+                this.ctx.stroke();
+                
+                const cube = this.toCube(row, col);
+                this.ctx.fillStyle = '#999';
+                this.ctx.font = '8px Arial';
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'middle';
+                
+                this.ctx.fillText(`${row},${col}`, x, y - hexSize * 0.3);
+                this.ctx.fillText(`${cube.q},${cube.r},${cube.s}`, x, y + hexSize * 0.3);
+                
+                if (value === 'X') {
+                    this.ctx.strokeStyle = '#FF5252';
+                    this.ctx.lineWidth = 3;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x - hexSize*0.3, y - hexSize*0.3);
+                    this.ctx.lineTo(x + hexSize*0.3, y + hexSize*0.3);
+                    this.ctx.moveTo(x + hexSize*0.3, y - hexSize*0.3);
+                    this.ctx.lineTo(x - hexSize*0.3, y + hexSize*0.3);
+                    this.ctx.stroke();
+                } else if (value === 'O') {
+                    this.ctx.strokeStyle = '#2196F3';
+                    this.ctx.lineWidth = 3;
+                    this.ctx.beginPath();
+                    this.ctx.arc(x, y, hexSize*0.25, 0, Math.PI * 2);
+                    this.ctx.stroke();
+                }
+            }
+            
+            drawWinningLine() {
+                if (!this.winningLine || this.winningLine.length < 2) return;
+                
+                const hexSize = this.getHexSize();
+                const hexHeight = hexSize * Math.sqrt(3);
+                const hexWidth = hexSize * 2;
+                
+                this.ctx.strokeStyle = 'gold';
+                this.ctx.lineWidth = 6;
+                this.ctx.lineCap = 'round';
+                this.ctx.beginPath();
+                
+                const first = this.winningLine[0];
+                const firstX = first.col * hexWidth * 0.75 + hexWidth / 2;
+                const firstY = first.row * hexHeight + (first.col % 2) * hexHeight / 2 + hexHeight / 2;
+                this.ctx.moveTo(firstX, firstY);
+                
+                for (let i = 1; i < this.winningLine.length; i++) {
+                    const cell = this.winningLine[i];
+                    const cellX = cell.col * hexWidth * 0.75 + hexWidth / 2;
+                    const cellY = cell.row * hexHeight + (cell.col % 2) * hexHeight / 2 + hexHeight / 2;
+                    this.ctx.lineTo(cellX, cellY);
+                }
+                
+                this.ctx.stroke();
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            new HexagonalTicTacToe();
+        });
+    </script>
+</body>
+</html>
