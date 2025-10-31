@@ -423,774 +423,1048 @@
             <p class="difficulty-info" id="difficultyInfo">Текущая сложность: Средний (5x5, линия из 4)</p>
         </div>
     </div>
-
-    <script>
-        class HexagonalTicTacToe {
-            constructor() {
-                this.canvas = document.getElementById('gameCanvas');
-                this.ctx = this.canvas.getContext('2d');
-                this.winMessage = document.getElementById('winMessage');
-                this.winText = document.getElementById('winText');
-                this.winCellsInfo = document.getElementById('winCellsInfo');
-                this.debugInfo = document.getElementById('debugInfo');
-                
-                // Настройки по умолчанию
-                this.boardSize = 5;
-                this.winLength = 4;
-                this.gameMode = 'pvp';
-                this.botDifficulty = 5; // По умолчанию сложный
-                
-                // Игровое состояние
-                this.board = [];
-                this.currentPlayer = 'X';
-                this.gameOver = false;
-                this.scores = { X: 0, O: 0 };
-                this.botThinking = false;
-                this.winningLine = null;
-                this.transpositionTable = new Map();
-                
-                this.initializeGame();
-                this.setupEventListeners();
+class HexagonalTicTacToe {
+    constructor() {
+        this.canvas = document.getElementById('gameCanvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.winMessage = document.getElementById('winMessage');
+        this.winText = document.getElementById('winText');
+        this.winCellsInfo = document.getElementById('winCellsInfo');
+        this.debugInfo = document.getElementById('debugInfo');
+        
+        // Настройки по умолчанию
+        this.boardSize = 5;
+        this.winLength = 4;
+        this.gameMode = 'pvp';
+        this.botDifficulty = 5; // По умолчанию сложный
+        
+        // Игровое состояние
+        this.board = [];
+        this.currentPlayer = 'X';
+        this.gameOver = false;
+        this.scores = { X: 0, O: 0 };
+        this.botThinking = false;
+        this.winningLine = null;
+        this.transpositionTable = new Map();
+        
+        // Онлайн-переменные
+        this.peer = null;
+        this.connection = null;
+        this.isOnline = false;
+        this.isHost = false;
+        this.roomId = null;
+        this.waitingForConnection = false;
+        
+        this.initializeGame();
+        this.setupEventListeners();
+    }
+    
+    initializeGame() {
+        this.board = Array(this.boardSize).fill().map(() => Array(this.boardSize).fill(''));
+        this.currentPlayer = 'X';
+        this.gameOver = false;
+        this.botThinking = false;
+        this.winningLine = null;
+        this.transpositionTable.clear();
+        this.winMessage.classList.remove('show');
+        
+        this.updatePlayerDisplay();
+        this.updateCanvasSize();
+        this.drawBoard();
+        this.updateDebugInfo();
+        
+        if (this.gameMode === 'pve' && this.currentPlayer === 'O') {
+            setTimeout(() => this.makeBotMove(), 500);
+        }
+    }
+    
+    updateCanvasSize() {
+        const hexSize = this.getHexSize();
+        const hexHeight = hexSize * Math.sqrt(3);
+        const hexWidth = hexSize * 2;
+        
+        const canvasWidth = this.boardSize * hexWidth * 0.75 + hexWidth;
+        const canvasHeight = this.boardSize * hexHeight + hexHeight;
+        
+        this.canvas.width = canvasWidth;
+        this.canvas.height = canvasHeight;
+        
+        this.drawBoard();
+    }
+    
+    getHexSize() {
+        const sizes = {4: 50, 5: 40, 6: 35, 7: 30};
+        return sizes[this.boardSize] || 40;
+    }
+    
+    setupEventListeners() {
+        this.canvas.addEventListener('click', (e) => this.handleClick(e));
+        document.getElementById('newGameBtn').addEventListener('click', () => this.initializeGame());
+        document.getElementById('resetBtn').addEventListener('click', () => this.resetScores());
+        document.getElementById('applySettings').addEventListener('click', () => this.applySettings());
+        document.getElementById('modePvP').addEventListener('click', () => this.setGameMode('pvp'));
+        document.getElementById('modePvE').addEventListener('click', () => this.setGameMode('pve'));
+        document.getElementById('modeOnline').addEventListener('click', () => this.setGameMode('online'));
+        document.getElementById('continueBtn').addEventListener('click', () => this.initializeGame());
+        
+        document.querySelectorAll('.difficulty-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.difficulty-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                this.botDifficulty = parseInt(e.target.dataset.depth);
+            });
+        });
+    }
+    
+    setGameMode(mode) {
+        this.gameMode = mode;
+        this.updateGameModeDisplay();
+        
+        // Показываем/скрываем онлайн-лобби
+        const onlineLobby = document.getElementById('onlineLobby');
+        if (onlineLobby) {
+            onlineLobby.style.display = mode === 'online' ? 'block' : 'none';
+        }
+        
+        this.initializeGame();
+    }
+    
+    updateGameModeDisplay() {
+        const pvpBtn = document.getElementById('modePvP');
+        const pveBtn = document.getElementById('modePvE');
+        const onlineBtn = document.getElementById('modeOnline');
+        const botDifficulty = document.getElementById('botDifficulty');
+        const playerO = document.getElementById('playerO');
+        
+        pvpBtn.classList.toggle('active', this.gameMode === 'pvp');
+        pveBtn.classList.toggle('active', this.gameMode === 'pve');
+        onlineBtn.classList.toggle('active', this.gameMode === 'online');
+        botDifficulty.style.display = this.gameMode === 'pve' ? 'block' : 'none';
+        
+        if (this.gameMode === 'pve') {
+            playerO.classList.add('player-bot');
+            playerO.querySelector('div:first-child').textContent = 'Бот O';
+        } else {
+            playerO.classList.remove('player-bot');
+            playerO.querySelector('div:first-child').textContent = 'Игрок O';
+        }
+    }
+    
+    applySettings() {
+        const newSize = parseInt(document.getElementById('boardSizeSelect').value);
+        const newWinLength = parseInt(document.getElementById('winLengthSelect').value);
+        
+        if (newWinLength > newSize) {
+            alert(`Длина линии не может быть больше размера поля! Максимум для поля ${newSize}x${newSize}: ${newSize} в ряд`);
+            return;
+        }
+        
+        this.boardSize = newSize;
+        this.winLength = newWinLength;
+        
+        this.updateDifficultyInfo();
+        
+        if (this.isOnline && this.isHost) {
+            this.sendData({ type: 'reset' });
+        }
+        
+        this.initializeGame();
+    }
+    
+    updateDifficultyInfo() {
+        const sizeNames = {'4': 'Простой', '5': 'Средний', '6': 'Сложный', '7': 'Эксперт'};
+        document.getElementById('currentWinLength').textContent = this.winLength;
+        document.getElementById('difficultyInfo').textContent = 
+            `Текущая сложность: ${sizeNames[this.boardSize]} (${this.boardSize}x${this.boardSize}, линия из ${this.winLength})`;
+    }
+    
+    updateDebugInfo() {
+        const hexSize = this.getHexSize();
+        this.debugInfo.textContent = `Размер поля: ${this.boardSize}x${this.boardSize} | Размер шестиугольника: ${hexSize}px`;
+    }
+    
+    handleClick(event) {
+        if (this.gameOver || this.botThinking) return;
+        
+        // В онлайн-режиме проверяем, чей ход
+        if (this.isOnline) {
+            if ((this.isHost && this.currentPlayer !== 'X') || 
+                (!this.isHost && this.currentPlayer !== 'O')) {
+                return;
             }
-            
-            initializeGame() {
-                this.board = Array(this.boardSize).fill().map(() => Array(this.boardSize).fill(''));
-                this.currentPlayer = 'X';
-                this.gameOver = false;
-                this.botThinking = false;
-                this.winningLine = null;
-                this.transpositionTable.clear();
-                this.winMessage.classList.remove('show');
+        } else if (this.gameMode === 'pve' && this.currentPlayer === 'O') {
+            return;
+        }
+        
+        const rect = this.canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        
+        const hex = this.getHexAtPosition(x, y);
+        if (hex && this.board[hex.row][hex.col] === '') {
+            if (this.isOnline) {
+                this.makeOnlineMove(hex.row, hex.col);
+            } else {
+                this.makeMove(hex.row, hex.col);
                 
-                this.updatePlayerDisplay();
-                this.updateCanvasSize();
-                this.drawBoard();
-                this.updateDebugInfo();
-                
-                if (this.gameMode === 'pve' && this.currentPlayer === 'O') {
-                    setTimeout(() => this.makeBotMove(), 500);
-                }
-            }
-            
-            updateCanvasSize() {
-                const hexSize = this.getHexSize();
-                const hexHeight = hexSize * Math.sqrt(3);
-                const hexWidth = hexSize * 2;
-                
-                const canvasWidth = this.boardSize * hexWidth * 0.75 + hexWidth;
-                const canvasHeight = this.boardSize * hexHeight + hexHeight;
-                
-                this.canvas.width = canvasWidth;
-                this.canvas.height = canvasHeight;
-                
-                this.drawBoard();
-            }
-            
-            getHexSize() {
-                const sizes = {4: 50, 5: 40, 6: 35, 7: 30};
-                return sizes[this.boardSize] || 40;
-            }
-            
-            setupEventListeners() {
-                this.canvas.addEventListener('click', (e) => this.handleClick(e));
-                document.getElementById('newGameBtn').addEventListener('click', () => this.initializeGame());
-                document.getElementById('resetBtn').addEventListener('click', () => this.resetScores());
-                document.getElementById('applySettings').addEventListener('click', () => this.applySettings());
-                document.getElementById('modePvP').addEventListener('click', () => this.setGameMode('pvp'));
-                document.getElementById('modePvE').addEventListener('click', () => this.setGameMode('pve'));
-                document.getElementById('continueBtn').addEventListener('click', () => this.initializeGame());
-                
-                document.querySelectorAll('.difficulty-btn').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        document.querySelectorAll('.difficulty-btn').forEach(b => b.classList.remove('active'));
-                        e.target.classList.add('active');
-                        this.botDifficulty = parseInt(e.target.dataset.depth);
-                    });
-                });
-            }
-            
-            setGameMode(mode) {
-                this.gameMode = mode;
-                this.updateGameModeDisplay();
-                this.initializeGame();
-            }
-            
-            updateGameModeDisplay() {
-                const pvpBtn = document.getElementById('modePvP');
-                const pveBtn = document.getElementById('modePvE');
-                const botDifficulty = document.getElementById('botDifficulty');
-                const playerO = document.getElementById('playerO');
-                
-                pvpBtn.classList.toggle('active', this.gameMode === 'pvp');
-                pveBtn.classList.toggle('active', this.gameMode === 'pve');
-                botDifficulty.style.display = this.gameMode === 'pve' ? 'block' : 'none';
-                
-                if (this.gameMode === 'pve') {
-                    playerO.classList.add('player-bot');
-                    playerO.querySelector('div:first-child').textContent = 'Бот O';
-                } else {
-                    playerO.classList.remove('player-bot');
-                    playerO.querySelector('div:first-child').textContent = 'Игрок O';
-                }
-            }
-            
-            applySettings() {
-                const newSize = parseInt(document.getElementById('boardSizeSelect').value);
-                const newWinLength = parseInt(document.getElementById('winLengthSelect').value);
-                
-                if (newWinLength > newSize) {
-                    alert(`Длина линии не может быть больше размера поля! Максимум для поля ${newSize}x${newSize}: ${newSize} в ряд`);
-                    return;
-                }
-                
-                this.boardSize = newSize;
-                this.winLength = newWinLength;
-                
-                this.updateDifficultyInfo();
-                this.initializeGame();
-            }
-            
-            updateDifficultyInfo() {
-                const sizeNames = {'4': 'Простой', '5': 'Средний', '6': 'Сложный', '7': 'Эксперт'};
-                document.getElementById('currentWinLength').textContent = this.winLength;
-                document.getElementById('difficultyInfo').textContent = 
-                    `Текущая сложность: ${sizeNames[this.boardSize]} (${this.boardSize}x${this.boardSize}, линия из ${this.winLength})`;
-            }
-            
-            updateDebugInfo() {
-                const hexSize = this.getHexSize();
-                this.debugInfo.textContent = `Размер поля: ${this.boardSize}x${this.boardSize} | Размер шестиугольника: ${hexSize}px`;
-            }
-            
-            handleClick(event) {
-                if (this.gameOver || this.botThinking) return;
-                if (this.gameMode === 'pve' && this.currentPlayer === 'O') return;
-                
-                const rect = this.canvas.getBoundingClientRect();
-                const x = event.clientX - rect.left;
-                const y = event.clientY - rect.top;
-                
-                const hex = this.getHexAtPosition(x, y);
-                if (hex && this.board[hex.row][hex.col] === '') {
-                    this.makeMove(hex.row, hex.col);
-                    
-                    if (this.gameMode === 'pve' && !this.gameOver && this.currentPlayer === 'O') {
-                        this.botThinking = true;
-                        this.updatePlayerDisplay();
-                        setTimeout(() => this.makeBotMove(), 100);
-                    }
-                }
-            }
-            
-            getHexAtPosition(x, y) {
-                const hexSize = this.getHexSize();
-                const hexHeight = hexSize * Math.sqrt(3);
-                const hexWidth = hexSize * 2;
-                
-                const gridX = Math.floor(x / (hexWidth * 0.75));
-                const gridY = Math.floor((y - (gridX % 2) * hexHeight / 2) / hexHeight);
-                
-                for (let row = Math.max(0, gridY - 1); row <= Math.min(this.boardSize - 1, gridY + 1); row++) {
-                    for (let col = Math.max(0, gridX - 1); col <= Math.min(this.boardSize - 1, gridX + 1); col++) {
-                        const hexX = col * hexWidth * 0.75 + hexWidth / 2;
-                        const hexY = row * hexHeight + (col % 2) * hexHeight / 2 + hexHeight / 2;
-                        
-                        if (this.isPointInHex(x, y, hexX, hexY, hexSize, hexHeight)) {
-                            return { row, col };
-                        }
-                    }
-                }
-                return null;
-            }
-            
-            isPointInHex(x, y, hexX, hexY, hexSize, hexHeight) {
-                const dx = Math.abs(x - hexX);
-                const dy = Math.abs(y - hexY);
-                
-                if (dx > hexSize || dy > hexHeight / 2) return false;
-                return (hexHeight * hexSize - hexHeight * dx - hexSize * dy) >= 0;
-            }
-            
-            makeMove(row, col) {
-                this.board[row][col] = this.currentPlayer;
-                
-                const winResult = this.checkWin();
-                if (winResult) {
-                    this.winningLine = winResult;
-                    this.handleWin();
-                } else if (this.isBoardFull()) {
-                    this.handleDraw();
-                } else {
-                    this.currentPlayer = this.currentPlayer === 'X' ? 'O' : 'X';
+                if (this.gameMode === 'pve' && !this.gameOver && this.currentPlayer === 'O') {
+                    this.botThinking = true;
                     this.updatePlayerDisplay();
+                    setTimeout(() => this.makeBotMove(), 100);
                 }
-                
-                this.drawBoard();
             }
-            
-            // КУБИЧЕСКИЕ КООРДИНАТЫ
-            toCube(row, col) {
-                const q = col;
-                const r = row - Math.floor(col / 2);
-                const s = -q - r;
-                return { q, r, s };
+        }
+    }
+    
+    getHexAtPosition(x, y) {
+        const hexSize = this.getHexSize();
+        const hexHeight = hexSize * Math.sqrt(3);
+        const hexWidth = hexSize * 2;
+        
+        const gridX = Math.floor(x / (hexWidth * 0.75));
+        const gridY = Math.floor((y - (gridX % 2) * hexHeight / 2) / hexHeight);
+        
+        for (let row = Math.max(0, gridY - 1); row <= Math.min(this.boardSize - 1, gridY + 1); row++) {
+            for (let col = Math.max(0, gridX - 1); col <= Math.min(this.boardSize - 1, gridX + 1); col++) {
+                const hexX = col * hexWidth * 0.75 + hexWidth / 2;
+                const hexY = row * hexHeight + (col % 2) * hexHeight / 2 + hexHeight / 2;
+                
+                if (this.isPointInHex(x, y, hexX, hexY, hexSize, hexHeight)) {
+                    return { row, col };
+                }
             }
-            
-            fromCube(cube) {
-                const col = cube.q;
-                const row = cube.r + Math.floor(cube.q / 2);
-                return { row, col };
-            }
-            
-            cubeAdd(cube1, cube2) {
-                return {
-                    q: cube1.q + cube2.q,
-                    r: cube1.r + cube2.r,
-                    s: cube1.s + cube2.s
-                };
-            }
-            
-            cubeScale(cube, factor) {
-                return {
-                    q: cube.q * factor,
-                    r: cube.r * factor,
-                    s: cube.s * factor
-                };
-            }
-            
-            checkWin() {
-                const directions = [
-                    { q: 1, r: 0, s: -1 }, { q: 1, r: -1, s: 0 }, { q: 0, r: -1, s: 1 },
-                    { q: -1, r: 0, s: 1 }, { q: -1, r: 1, s: 0 }, { q: 0, r: 1, s: -1 }
-                ];
-                
-                for (let row = 0; row < this.boardSize; row++) {
-                    for (let col = 0; col < this.boardSize; col++) {
-                        const player = this.board[row][col];
-                        if (player === '') continue;
-                        
-                        const startCube = this.toCube(row, col);
-                        
-                        for (const direction of directions) {
-                            const line = this.checkLineInCubeDirection(startCube, direction, player);
-                            if (line && line.length >= this.winLength) {
-                                return line;
-                            }
-                        }
-                    }
-                }
-                return null;
-            }
-            
-            checkLineInCubeDirection(startCube, direction, player) {
-                const line = [this.fromCube(startCube)];
-                
-                let current = { ...startCube };
-                while (true) {
-                    current = this.cubeAdd(current, direction);
-                    const pos = this.fromCube(current);
-                    if (!this.isValid(pos.row, pos.col) || this.board[pos.row][pos.col] !== player) break;
-                    line.push(pos);
-                }
-                
-                current = { ...startCube };
-                while (true) {
-                    current = this.cubeAdd(current, this.cubeScale(direction, -1));
-                    const pos = this.fromCube(current);
-                    if (!this.isValid(pos.row, pos.col) || this.board[pos.row][pos.col] !== player) break;
-                    line.unshift(pos);
-                }
-                
-                return line.length >= this.winLength ? line : null;
-            }
-            
-            isValid(row, col) {
-                return row >= 0 && row < this.boardSize && col >= 0 && col < this.boardSize;
-            }
-            
-            isBoardFull() {
-                for (let row = 0; row < this.boardSize; row++) {
-                    for (let col = 0; col < this.boardSize; col++) {
-                        if (this.board[row][col] === '') return false;
-                    }
-                }
-                return true;
-            }
-            
-            // СИЛЬНЫЙ БОТ С ПРОДВИНУТЫМ АЛГОРИТМОМ
-            makeBotMove() {
-                if (this.gameOver) return;
-                
-                console.time('BotThinking');
-                let move;
-                
-                if (this.boardSize <= 6) {
-                    // Для маленьких досок - полный перебор с оптимизациями
-                    move = this.advancedMinimax(this.botDifficulty, -Infinity, Infinity, 'O').move;
-                } else {
-                    // Для больших досок - продвинутая эвристика
-                    move = this.findAdvancedMove();
-                }
-                
-                console.timeEnd('BotThinking');
-                
-                if (move) {
-                    this.makeMove(move.row, move.col);
-                }
-                this.botThinking = false;
-                this.updatePlayerDisplay();
-            }
-            
-            // ПРОДВИНУТЫЙ МИНИМАКС С ОПТИМИЗАЦИЯМИ
-            advancedMinimax(depth, alpha, beta, player) {
-                const hash = this.getBoardHash();
-                const cached = this.transpositionTable.get(hash);
-                if (cached && cached.depth >= depth) {
-                    return cached;
-                }
-                
-                // Быстрая проверка терминальных состояний
-                const win = this.checkWin();
-                if (win) {
-                    const score = (this.board[win[0].row][win[0].col] === 'O' ? 10000 : -10000) * (depth + 1);
-                    return { score, move: null };
-                }
-                
-                if (this.isBoardFull() || depth === 0) {
-                    const score = this.advancedEvaluateBoard();
-                    return { score, move: null };
-                }
-                
-                let bestScore = player === 'O' ? -Infinity : Infinity;
-                let bestMove = null;
-                
-                const moves = this.getSmartMoves();
-                
-                for (const move of moves) {
-                    this.board[move.row][move.col] = player;
-                    
-                    const result = this.advancedMinimax(depth - 1, alpha, beta, player === 'O' ? 'X' : 'O');
-                    
-                    this.board[move.row][move.col] = '';
-                    
-                    if (player === 'O') {
-                        if (result.score > bestScore) {
-                            bestScore = result.score;
-                            bestMove = move;
-                        }
-                        alpha = Math.max(alpha, bestScore);
-                    } else {
-                        if (result.score < bestScore) {
-                            bestScore = result.score;
-                            bestMove = move;
-                        }
-                        beta = Math.min(beta, bestScore);
-                    }
-                    
-                    if (beta <= alpha) break;
-                }
-                
-                const result = { score: bestScore, move: bestMove, depth };
-                this.transpositionTable.set(hash, result);
-                
-                return result;
-            }
-            
-            // ПРОДВИНУТАЯ ЭВРИСТИЧЕСКАЯ ОЦЕНКА
-            advancedEvaluateBoard() {
-                if (this.checkWin()) {
-                    return this.board[this.checkWin()[0].row][this.checkWin()[0].col] === 'O' ? 10000 : -10000;
-                }
-                
-                let score = 0;
-                const threats = this.findThreats();
-                
-                // Оценка угроз
-                score += threats.botThreats * 100;
-                score -= threats.playerThreats * 100;
-                
-                // Оценка позиций
-                for (let row = 0; row < this.boardSize; row++) {
-                    for (let col = 0; col < this.boardSize; col++) {
-                        if (this.board[row][col] !== '') {
-                            const player = this.board[row][col];
-                            const multiplier = player === 'O' ? 1 : -1;
-                            const positionScore = this.evaluatePositionAdvanced(row, col);
-                            score += positionScore * multiplier;
-                        }
-                    }
-                }
-                
-                // Бонус за контроль центра
-                score += this.evaluateCenterControl();
-                
-                return score;
-            }
-            
-            // ОЦЕНКА УГРОЗ
-            findThreats() {
-                let botThreats = 0;
-                let playerThreats = 0;
-                
-                const directions = [
-                    { q: 1, r: 0, s: -1 }, { q: 1, r: -1, s: 0 }, { q: 0, r: -1, s: 1 },
-                    { q: -1, r: 0, s: 1 }, { q: -1, r: 1, s: 0 }, { q: 0, r: 1, s: -1 }
-                ];
-                
-                for (let row = 0; row < this.boardSize; row++) {
-                    for (let col = 0; col < this.boardSize; col++) {
-                        if (this.board[row][col] === '') {
-                            // Проверяем угрозы для бота
-                            this.board[row][col] = 'O';
-                            if (this.checkWin()) botThreats++;
-                            this.board[row][col] = '';
-                            
-                            // Проверяем угрозы для игрока
-                            this.board[row][col] = 'X';
-                            if (this.checkWin()) playerThreats++;
-                            this.board[row][col] = '';
-                        }
-                    }
-                }
-                
-                return { botThreats, playerThreats };
-            }
-            
-            // ПРОДВИНУТАЯ ОЦЕНКА ПОЗИЦИИ
-            evaluatePositionAdvanced(row, col) {
+        }
+        return null;
+    }
+    
+    isPointInHex(x, y, hexX, hexY, hexSize, hexHeight) {
+        const dx = Math.abs(x - hexX);
+        const dy = Math.abs(y - hexY);
+        
+        if (dx > hexSize || dy > hexHeight / 2) return false;
+        return (hexHeight * hexSize - hexHeight * dx - hexSize * dy) >= 0;
+    }
+    
+    makeMove(row, col) {
+        this.board[row][col] = this.currentPlayer;
+        
+        const winResult = this.checkWin();
+        if (winResult) {
+            this.winningLine = winResult;
+            this.handleWin();
+        } else if (this.isBoardFull()) {
+            this.handleDraw();
+        } else {
+            this.currentPlayer = this.currentPlayer === 'X' ? 'O' : 'X';
+            this.updatePlayerDisplay();
+        }
+        
+        this.drawBoard();
+    }
+    
+    makeOnlineMove(row, col) {
+        // Локальное обновление
+        this.board[row][col] = this.currentPlayer;
+        
+        const winResult = this.checkWin();
+        let gameOver = false;
+        let winner = null;
+        let winningLine = null;
+        
+        if (winResult) {
+            gameOver = true;
+            winner = this.currentPlayer;
+            winningLine = winResult;
+            this.winningLine = winResult;
+            this.handleWin();
+        } else if (this.isBoardFull()) {
+            gameOver = true;
+            this.handleDraw();
+        }
+        
+        // Отправка хода другому игроку
+        this.sendData({
+            type: 'move',
+            row: row,
+            col: col,
+            player: this.currentPlayer,
+            nextPlayer: this.currentPlayer === 'X' ? 'O' : 'X',
+            gameOver: gameOver,
+            winner: winner,
+            winningLine: winningLine
+        });
+        
+        if (!gameOver) {
+            this.currentPlayer = this.currentPlayer === 'X' ? 'O' : 'X';
+        }
+        
+        this.drawBoard();
+        this.updatePlayerDisplay();
+    }
+    
+    // КУБИЧЕСКИЕ КООРДИНАТЫ
+    toCube(row, col) {
+        const q = col;
+        const r = row - Math.floor(col / 2);
+        const s = -q - r;
+        return { q, r, s };
+    }
+    
+    fromCube(cube) {
+        const col = cube.q;
+        const row = cube.r + Math.floor(cube.q / 2);
+        return { row, col };
+    }
+    
+    cubeAdd(cube1, cube2) {
+        return {
+            q: cube1.q + cube2.q,
+            r: cube1.r + cube2.r,
+            s: cube1.s + cube2.s
+        };
+    }
+    
+    cubeScale(cube, factor) {
+        return {
+            q: cube.q * factor,
+            r: cube.r * factor,
+            s: cube.s * factor
+        };
+    }
+    
+    checkWin() {
+        const directions = [
+            { q: 1, r: 0, s: -1 }, { q: 1, r: -1, s: 0 }, { q: 0, r: -1, s: 1 },
+            { q: -1, r: 0, s: 1 }, { q: -1, r: 1, s: 0 }, { q: 0, r: 1, s: -1 }
+        ];
+        
+        for (let row = 0; row < this.boardSize; row++) {
+            for (let col = 0; col < this.boardSize; col++) {
                 const player = this.board[row][col];
-                let score = 0;
+                if (player === '') continue;
                 
-                // Базовая ценность позиции
-                const center = Math.floor(this.boardSize / 2);
-                const distanceFromCenter = Math.abs(row - center) + Math.abs(col - center);
-                score += (this.boardSize - distanceFromCenter) * 2;
-                
-                // Оценка потенциальных линий
-                const directions = [
-                    { q: 1, r: 0, s: -1 }, { q: 1, r: -1, s: 0 }, { q: 0, r: -1, s: 1 },
-                    { q: -1, r: 0, s: 1 }, { q: -1, r: 1, s: 0 }, { q: 0, r: 1, s: -1 }
-                ];
-                
-                for (const dir of directions) {
-                    const potential = this.evaluateLinePotential(row, col, dir, player);
-                    score += potential * 10;
-                }
-                
-                return score;
-            }
-            
-            evaluateLinePotential(row, col, direction, player) {
                 const startCube = this.toCube(row, col);
-                let potential = 0;
-                let consecutive = 1;
-                let emptySpaces = 0;
                 
-                // Проверяем в одном направлении
-                let current = { ...startCube };
-                for (let i = 0; i < this.winLength - 1; i++) {
-                    current = this.cubeAdd(current, direction);
-                    const pos = this.fromCube(current);
-                    if (!this.isValid(pos.row, pos.col)) break;
-                    
-                    if (this.board[pos.row][pos.col] === player) {
-                        consecutive++;
-                    } else if (this.board[pos.row][pos.col] === '') {
-                        emptySpaces++;
-                    } else {
-                        break;
+                for (const direction of directions) {
+                    const line = this.checkLineInCubeDirection(startCube, direction, player);
+                    if (line && line.length >= this.winLength) {
+                        return line;
                     }
                 }
-                
-                // Проверяем в противоположном направлении
-                current = { ...startCube };
-                for (let i = 0; i < this.winLength - 1; i++) {
-                    current = this.cubeAdd(current, this.cubeScale(direction, -1));
-                    const pos = this.fromCube(current);
-                    if (!this.isValid(pos.row, pos.col)) break;
-                    
-                    if (this.board[pos.row][pos.col] === player) {
-                        consecutive++;
-                    } else if (this.board[pos.row][pos.col] === '') {
-                        emptySpaces++;
-                    } else {
-                        break;
-                    }
+            }
+        }
+        return null;
+    }
+    
+    checkLineInCubeDirection(startCube, direction, player) {
+        const line = [this.fromCube(startCube)];
+        
+        let current = { ...startCube };
+        while (true) {
+            current = this.cubeAdd(current, direction);
+            const pos = this.fromCube(current);
+            if (!this.isValid(pos.row, pos.col) || this.board[pos.row][pos.col] !== player) break;
+            line.push(pos);
+        }
+        
+        current = { ...startCube };
+        while (true) {
+            current = this.cubeAdd(current, this.cubeScale(direction, -1));
+            const pos = this.fromCube(current);
+            if (!this.isValid(pos.row, pos.col) || this.board[pos.row][pos.col] !== player) break;
+            line.unshift(pos);
+        }
+        
+        return line.length >= this.winLength ? line : null;
+    }
+    
+    isValid(row, col) {
+        return row >= 0 && row < this.boardSize && col >= 0 && col < this.boardSize;
+    }
+    
+    isBoardFull() {
+        for (let row = 0; row < this.boardSize; row++) {
+            for (let col = 0; col < this.boardSize; col++) {
+                if (this.board[row][col] === '') return false;
+            }
+        }
+        return true;
+    }
+    
+    // СИЛЬНЫЙ БОТ С ПРОДВИНУТЫМ АЛГОРИТМОМ
+    makeBotMove() {
+        if (this.gameOver) return;
+        
+        console.time('BotThinking');
+        let move;
+        
+        if (this.boardSize <= 6) {
+            // Для маленьких досок - полный перебор с оптимизациями
+            move = this.advancedMinimax(this.botDifficulty, -Infinity, Infinity, 'O').move;
+        } else {
+            // Для больших досок - продвинутая эвристика
+            move = this.findAdvancedMove();
+        }
+        
+        console.timeEnd('BotThinking');
+        
+        if (move) {
+            this.makeMove(move.row, move.col);
+        }
+        this.botThinking = false;
+        this.updatePlayerDisplay();
+    }
+    
+    // ПРОДВИНУТЫЙ МИНИМАКС С ОПТИМИЗАЦИЯМИ
+    advancedMinimax(depth, alpha, beta, player) {
+        const hash = this.getBoardHash();
+        const cached = this.transpositionTable.get(hash);
+        if (cached && cached.depth >= depth) {
+            return cached;
+        }
+        
+        // Быстрая проверка терминальных состояний
+        const win = this.checkWin();
+        if (win) {
+            const score = (this.board[win[0].row][win[0].col] === 'O' ? 10000 : -10000) * (depth + 1);
+            return { score, move: null };
+        }
+        
+        if (this.isBoardFull() || depth === 0) {
+            const score = this.advancedEvaluateBoard();
+            return { score, move: null };
+        }
+        
+        let bestScore = player === 'O' ? -Infinity : Infinity;
+        let bestMove = null;
+        
+        const moves = this.getSmartMoves();
+        
+        for (const move of moves) {
+            this.board[move.row][move.col] = player;
+            
+            const result = this.advancedMinimax(depth - 1, alpha, beta, player === 'O' ? 'X' : 'O');
+            
+            this.board[move.row][move.col] = '';
+            
+            if (player === 'O') {
+                if (result.score > bestScore) {
+                    bestScore = result.score;
+                    bestMove = move;
                 }
-                
-                // Оцениваем потенциал линии
-                if (consecutive >= this.winLength - 1 && emptySpaces > 0) {
-                    potential = 100; // Почти выигрышная линия
-                } else if (consecutive >= this.winLength - 2 && emptySpaces >= 2) {
-                    potential = 50; // Сильная угроза
-                } else if (consecutive >= 2) {
-                    potential = consecutive * 5; // Обычная линия
+                alpha = Math.max(alpha, bestScore);
+            } else {
+                if (result.score < bestScore) {
+                    bestScore = result.score;
+                    bestMove = move;
                 }
-                
-                return potential;
+                beta = Math.min(beta, bestScore);
             }
             
-            // ОЦЕНКА КОНТРОЛЯ ЦЕНТРА
-            evaluateCenterControl() {
-                let botControl = 0;
-                let playerControl = 0;
-                const center = Math.floor(this.boardSize / 2);
-                
-                for (let row = center - 1; row <= center + 1; row++) {
-                    for (let col = center - 1; col <= center + 1; col++) {
-                        if (this.isValid(row, col)) {
-                            if (this.board[row][col] === 'O') botControl++;
-                            else if (this.board[row][col] === 'X') playerControl++;
-                        }
-                    }
+            if (beta <= alpha) break;
+        }
+        
+        const result = { score: bestScore, move: bestMove, depth };
+        this.transpositionTable.set(hash, result);
+        
+        return result;
+    }
+    
+    // ПРОДВИНУТАЯ ЭВРИСТИЧЕСКАЯ ОЦЕНКА
+    advancedEvaluateBoard() {
+        if (this.checkWin()) {
+            return this.board[this.checkWin()[0].row][this.checkWin()[0].col] === 'O' ? 10000 : -10000;
+        }
+        
+        let score = 0;
+        const threats = this.findThreats();
+        
+        // Оценка угроз
+        score += threats.botThreats * 100;
+        score -= threats.playerThreats * 100;
+        
+        // Оценка позиций
+        for (let row = 0; row < this.boardSize; row++) {
+            for (let col = 0; col < this.boardSize; col++) {
+                if (this.board[row][col] !== '') {
+                    const player = this.board[row][col];
+                    const multiplier = player === 'O' ? 1 : -1;
+                    const positionScore = this.evaluatePositionAdvanced(row, col);
+                    score += positionScore * multiplier;
                 }
-                
-                return (botControl - playerControl) * 10;
-            }
-            
-            // УМНЫЙ ВЫБОР ХОДОВ
-            getSmartMoves() {
-                const moves = [];
-                const center = Math.floor(this.boardSize / 2);
-                
-                // Приоритеты: угрозы > центр > остальное
-                for (let row = 0; row < this.boardSize; row++) {
-                    for (let col = 0; col < this.boardSize; col++) {
-                        if (this.board[row][col] === '') {
-                            let priority = 0;
-                            
-                            // Выигрышный ход - максимальный приоритет
-                            this.board[row][col] = 'O';
-                            if (this.checkWin()) priority = 10000;
-                            this.board[row][col] = '';
-                            
-                            // Блокировка выигрыша игрока
-                            this.board[row][col] = 'X';
-                            if (this.checkWin()) priority = 5000;
-                            this.board[row][col] = '';
-                            
-                            // Создание угрозы
-                            if (priority === 0) {
-                                this.board[row][col] = 'O';
-                                const threats = this.findThreats();
-                                if (threats.botThreats > 0) priority = 1000;
-                                this.board[row][col] = '';
-                            }
-                            
-                            // Близость к центру
-                            if (priority === 0) {
-                                const distance = Math.abs(row - center) + Math.abs(col - center);
-                                priority = this.boardSize - distance;
-                            }
-                            
-                            moves.push({ row, col, priority });
-                        }
-                    }
-                }
-                
-                return moves.sort((a, b) => b.priority - a.priority);
-            }
-            
-            // ХЭШ ДОСКИ ДЛЯ ТРАНСПОЗИЦИОННОЙ ТАБЛИЦЫ
-            getBoardHash() {
-                let hash = '';
-                for (let row = 0; row < this.boardSize; row++) {
-                    for (let col = 0; col < this.boardSize; col++) {
-                        hash += this.board[row][col] || '-';
-                    }
-                }
-                return hash;
-            }
-            
-            // АЛЬТЕРНАТИВНЫЙ АЛГОРИТМ ДЛЯ БОЛЬШИХ ДОСОК
-            findAdvancedMove() {
-                const moves = this.getSmartMoves();
-                
-                // Проверяем выигрыш за 1 ход
-                for (const move of moves) {
-                    this.board[move.row][move.col] = 'O';
-                    if (this.checkWin()) {
-                        this.board[move.row][move.col] = '';
-                        return move;
-                    }
-                    this.board[move.row][move.col] = '';
-                }
-                
-                // Блокируем выигрыш игрока
-                for (const move of moves.slice(0, 10)) {
-                    this.board[move.row][move.col] = 'X';
-                    if (this.checkWin()) {
-                        this.board[move.row][move.col] = '';
-                        return move;
-                    }
-                    this.board[move.row][move.col] = '';
-                }
-                
-                // Ищем лучший ход по продвинутой эвристике
-                let bestScore = -Infinity;
-                let bestMove = moves[0];
-                
-                for (const move of moves.slice(0, 8)) {
-                    this.board[move.row][move.col] = 'O';
-                    const score = this.advancedEvaluateBoard();
-                    this.board[move.row][move.col] = '';
-                    
-                    if (score > bestScore) {
-                        bestScore = score;
-                        bestMove = move;
-                    }
-                }
-                
-                return bestMove;
-            }
-            
-            handleWin() {
-                this.gameOver = true;
-                this.scores[this.currentPlayer]++;
-                this.updateScores();
-                
-                const winner = this.gameMode === 'pve' && this.currentPlayer === 'O' ? 'Бот' : `Игрок ${this.currentPlayer}`;
-                this.winText.textContent = `${winner} победил! 🎉`;
-                
-                const cellsInfo = this.winningLine.map(cell => `[${cell.row},${cell.col}]`).join(' → ');
-                this.winCellsInfo.textContent = `Выигрышная линия: ${cellsInfo}`;
-                
-                this.winMessage.classList.add('show');
-            }
-            
-            handleDraw() {
-                this.gameOver = true;
-                this.winText.textContent = 'Ничья! 🤝';
-                this.winCellsInfo.textContent = '';
-                this.winMessage.classList.add('show');
-            }
-            
-            resetScores() {
-                this.scores = { X: 0, O: 0 };
-                this.updateScores();
-                this.initializeGame();
-            }
-            
-            updatePlayerDisplay() {
-                const playerX = document.getElementById('playerX');
-                const playerO = document.getElementById('playerO');
-                
-                playerX.classList.toggle('active', this.currentPlayer === 'X' && !this.botThinking);
-                playerO.classList.toggle('active', this.currentPlayer === 'O' && !this.botThinking);
-                
-                let botIndicator = playerO.querySelector('.bot-thinking');
-                if (this.botThinking && this.currentPlayer === 'O' && this.gameMode === 'pve') {
-                    if (!botIndicator) {
-                        botIndicator = document.createElement('div');
-                        botIndicator.className = 'bot-thinking';
-                        botIndicator.textContent = 'думает...';
-                        playerO.appendChild(botIndicator);
-                    }
-                } else if (botIndicator) {
-                    botIndicator.remove();
-                }
-            }
-            
-            updateScores() {
-                document.getElementById('scoreX').textContent = this.scores.X;
-                document.getElementById('scoreO').textContent = this.scores.O;
-            }
-            
-            drawBoard() {
-                const hexSize = this.getHexSize();
-                const hexHeight = hexSize * Math.sqrt(3);
-                const hexWidth = hexSize * 2;
-                
-                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                
-                for (let row = 0; row < this.boardSize; row++) {
-                    for (let col = 0; col < this.boardSize; col++) {
-                        const x = col * hexWidth * 0.75 + hexWidth / 2;
-                        const y = row * hexHeight + (col % 2) * hexHeight / 2 + hexHeight / 2;
-                        this.drawHex(x, y, hexSize, this.board[row][col], row, col);
-                    }
-                }
-                
-                if (this.winningLine) {
-                    this.drawWinningLine();
-                }
-            }
-            
-            drawHex(x, y, hexSize, value, row, col) {
-                this.ctx.beginPath();
-                for (let i = 0; i < 6; i++) {
-                    const angle = Math.PI / 3 * i;
-                    const hexX = x + hexSize * Math.cos(angle);
-                    const hexY = y + hexSize * Math.sin(angle);
-                    if (i === 0) this.ctx.moveTo(hexX, hexY);
-                    else this.ctx.lineTo(hexX, hexY);
-                }
-                this.ctx.closePath();
-                
-                this.ctx.fillStyle = '#f8f9fa';
-                this.ctx.fill();
-                this.ctx.strokeStyle = '#ddd';
-                this.ctx.lineWidth = 2;
-                this.ctx.stroke();
-                
-                const cube = this.toCube(row, col);
-                this.ctx.fillStyle = '#999';
-                this.ctx.font = '8px Arial';
-                this.ctx.textAlign = 'center';
-                this.ctx.textBaseline = 'middle';
-                
-                this.ctx.fillText(`${row},${col}`, x, y - hexSize * 0.3);
-                this.ctx.fillText(`${cube.q},${cube.r},${cube.s}`, x, y + hexSize * 0.3);
-                
-                if (value === 'X') {
-                    this.ctx.strokeStyle = '#FF5252';
-                    this.ctx.lineWidth = 3;
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(x - hexSize*0.3, y - hexSize*0.3);
-                    this.ctx.lineTo(x + hexSize*0.3, y + hexSize*0.3);
-                    this.ctx.moveTo(x + hexSize*0.3, y - hexSize*0.3);
-                    this.ctx.lineTo(x - hexSize*0.3, y + hexSize*0.3);
-                    this.ctx.stroke();
-                } else if (value === 'O') {
-                    this.ctx.strokeStyle = '#2196F3';
-                    this.ctx.lineWidth = 3;
-                    this.ctx.beginPath();
-                    this.ctx.arc(x, y, hexSize*0.25, 0, Math.PI * 2);
-                    this.ctx.stroke();
-                }
-            }
-            
-            drawWinningLine() {
-                if (!this.winningLine || this.winningLine.length < 2) return;
-                
-                const hexSize = this.getHexSize();
-                const hexHeight = hexSize * Math.sqrt(3);
-                const hexWidth = hexSize * 2;
-                
-                this.ctx.strokeStyle = 'gold';
-                this.ctx.lineWidth = 6;
-                this.ctx.lineCap = 'round';
-                this.ctx.beginPath();
-                
-                const first = this.winningLine[0];
-                const firstX = first.col * hexWidth * 0.75 + hexWidth / 2;
-                const firstY = first.row * hexHeight + (first.col % 2) * hexHeight / 2 + hexHeight / 2;
-                this.ctx.moveTo(firstX, firstY);
-                
-                for (let i = 1; i < this.winningLine.length; i++) {
-                    const cell = this.winningLine[i];
-                    const cellX = cell.col * hexWidth * 0.75 + hexWidth / 2;
-                    const cellY = cell.row * hexHeight + (cell.col % 2) * hexHeight / 2 + hexHeight / 2;
-                    this.ctx.lineTo(cellX, cellY);
-                }
-                
-                this.ctx.stroke();
             }
         }
         
-        document.addEventListener('DOMContentLoaded', () => {
-            new HexagonalTicTacToe();
+        // Бонус за контроль центра
+        score += this.evaluateCenterControl();
+        
+        return score;
+    }
+    
+    // ОЦЕНКА УГРОЗ
+    findThreats() {
+        let botThreats = 0;
+        let playerThreats = 0;
+        
+        const directions = [
+            { q: 1, r: 0, s: -1 }, { q: 1, r: -1, s: 0 }, { q: 0, r: -1, s: 1 },
+            { q: -1, r: 0, s: 1 }, { q: -1, r: 1, s: 0 }, { q: 0, r: 1, s: -1 }
+        ];
+        
+        for (let row = 0; row < this.boardSize; row++) {
+            for (let col = 0; col < this.boardSize; col++) {
+                if (this.board[row][col] === '') {
+                    // Проверяем угрозы для бота
+                    this.board[row][col] = 'O';
+                    if (this.checkWin()) botThreats++;
+                    this.board[row][col] = '';
+                    
+                    // Проверяем угрозы для игрока
+                    this.board[row][col] = 'X';
+                    if (this.checkWin()) playerThreats++;
+                    this.board[row][col] = '';
+                }
+            }
+        }
+        
+        return { botThreats, playerThreats };
+    }
+    
+    // ПРОДВИНУТАЯ ОЦЕНКА ПОЗИЦИИ
+    evaluatePositionAdvanced(row, col) {
+        const player = this.board[row][col];
+        let score = 0;
+        
+        // Базовая ценность позиции
+        const center = Math.floor(this.boardSize / 2);
+        const distanceFromCenter = Math.abs(row - center) + Math.abs(col - center);
+        score += (this.boardSize - distanceFromCenter) * 2;
+        
+        // Оценка потенциальных линий
+        const directions = [
+            { q: 1, r: 0, s: -1 }, { q: 1, r: -1, s: 0 }, { q: 0, r: -1, s: 1 },
+            { q: -1, r: 0, s: 1 }, { q: -1, r: 1, s: 0 }, { q: 0, r: 1, s: -1 }
+        ];
+        
+        for (const dir of directions) {
+            const potential = this.evaluateLinePotential(row, col, dir, player);
+            score += potential * 10;
+        }
+        
+        return score;
+    }
+    
+    evaluateLinePotential(row, col, direction, player) {
+        const startCube = this.toCube(row, col);
+        let potential = 0;
+        let consecutive = 1;
+        let emptySpaces = 0;
+        
+        // Проверяем в одном направлении
+        let current = { ...startCube };
+        for (let i = 0; i < this.winLength - 1; i++) {
+            current = this.cubeAdd(current, direction);
+            const pos = this.fromCube(current);
+            if (!this.isValid(pos.row, pos.col)) break;
+            
+            if (this.board[pos.row][pos.col] === player) {
+                consecutive++;
+            } else if (this.board[pos.row][pos.col] === '') {
+                emptySpaces++;
+            } else {
+                break;
+            }
+        }
+        
+        // Проверяем в противоположном направлении
+        current = { ...startCube };
+        for (let i = 0; i < this.winLength - 1; i++) {
+            current = this.cubeAdd(current, this.cubeScale(direction, -1));
+            const pos = this.fromCube(current);
+            if (!this.isValid(pos.row, pos.col)) break;
+            
+            if (this.board[pos.row][pos.col] === player) {
+                consecutive++;
+            } else if (this.board[pos.row][pos.col] === '') {
+                emptySpaces++;
+            } else {
+                break;
+            }
+        }
+        
+        // Оцениваем потенциал линии
+        if (consecutive >= this.winLength - 1 && emptySpaces > 0) {
+            potential = 100; // Почти выигрышная линия
+        } else if (consecutive >= this.winLength - 2 && emptySpaces >= 2) {
+            potential = 50; // Сильная угроза
+        } else if (consecutive >= 2) {
+            potential = consecutive * 5; // Обычная линия
+        }
+        
+        return potential;
+    }
+    
+    // ОЦЕНКА КОНТРОЛЯ ЦЕНТРА
+    evaluateCenterControl() {
+        let botControl = 0;
+        let playerControl = 0;
+        const center = Math.floor(this.boardSize / 2);
+        
+        for (let row = center - 1; row <= center + 1; row++) {
+            for (let col = center - 1; col <= center + 1; col++) {
+                if (this.isValid(row, col)) {
+                    if (this.board[row][col] === 'O') botControl++;
+                    else if (this.board[row][col] === 'X') playerControl++;
+                }
+            }
+        }
+        
+        return (botControl - playerControl) * 10;
+    }
+    
+    // УМНЫЙ ВЫБОР ХОДОВ
+    getSmartMoves() {
+        const moves = [];
+        const center = Math.floor(this.boardSize / 2);
+        
+        // Приоритеты: угрозы > центр > остальное
+        for (let row = 0; row < this.boardSize; row++) {
+            for (let col = 0; col < this.boardSize; col++) {
+                if (this.board[row][col] === '') {
+                    let priority = 0;
+                    
+                    // Выигрышный ход - максимальный приоритет
+                    this.board[row][col] = 'O';
+                    if (this.checkWin()) priority = 10000;
+                    this.board[row][col] = '';
+                    
+                    // Блокировка выигрыша игрока
+                    this.board[row][col] = 'X';
+                    if (this.checkWin()) priority = 5000;
+                    this.board[row][col] = '';
+                    
+                    // Создание угрозы
+                    if (priority === 0) {
+                        this.board[row][col] = 'O';
+                        const threats = this.findThreats();
+                        if (threats.botThreats > 0) priority = 1000;
+                        this.board[row][col] = '';
+                    }
+                    
+                    // Близость к центру
+                    if (priority === 0) {
+                        const distance = Math.abs(row - center) + Math.abs(col - center);
+                        priority = this.boardSize - distance;
+                    }
+                    
+                    moves.push({ row, col, priority });
+                }
+            }
+        }
+        
+        return moves.sort((a, b) => b.priority - a.priority);
+    }
+    
+    // ХЭШ ДОСКИ ДЛЯ ТРАНСПОЗИЦИОННОЙ ТАБЛИЦЫ
+    getBoardHash() {
+        let hash = '';
+        for (let row = 0; row < this.boardSize; row++) {
+            for (let col = 0; col < this.boardSize; col++) {
+                hash += this.board[row][col] || '-';
+            }
+        }
+        return hash;
+    }
+    
+    // АЛЬТЕРНАТИВНЫЙ АЛГОРИТМ ДЛЯ БОЛЬШИХ ДОСОК
+    findAdvancedMove() {
+        const moves = this.getSmartMoves();
+        
+        // Проверяем выигрыш за 1 ход
+        for (const move of moves) {
+            this.board[move.row][move.col] = 'O';
+            if (this.checkWin()) {
+                this.board[move.row][move.col] = '';
+                return move;
+            }
+            this.board[move.row][move.col] = '';
+        }
+        
+        // Блокируем выигрыш игрока
+        for (const move of moves.slice(0, 10)) {
+            this.board[move.row][move.col] = 'X';
+            if (this.checkWin()) {
+                this.board[move.row][move.col] = '';
+                return move;
+            }
+            this.board[move.row][move.col] = '';
+        }
+        
+        // Ищем лучший ход по продвинутой эвристике
+        let bestScore = -Infinity;
+        let bestMove = moves[0];
+        
+        for (const move of moves.slice(0, 8)) {
+            this.board[move.row][move.col] = 'O';
+            const score = this.advancedEvaluateBoard();
+            this.board[move.row][move.col] = '';
+            
+            if (score > bestScore) {
+                bestScore = score;
+                bestMove = move;
+            }
+        }
+        
+        return bestMove;
+    }
+    
+    handleWin() {
+        this.gameOver = true;
+        this.scores[this.currentPlayer]++;
+        this.updateScores();
+        
+        const winner = this.gameMode === 'pve' && this.currentPlayer === 'O' ? 'Бот' : `Игрок ${this.currentPlayer}`;
+        this.winText.textContent = `${winner} победил! 🎉`;
+        
+        const cellsInfo = this.winningLine.map(cell => `[${cell.row},${cell.col}]`).join(' → ');
+        this.winCellsInfo.textContent = `Выигрышная линия: ${cellsInfo}`;
+        
+        this.winMessage.classList.add('show');
+    }
+    
+    handleDraw() {
+        this.gameOver = true;
+        this.winText.textContent = 'Ничья! 🤝';
+        this.winCellsInfo.textContent = '';
+        this.winMessage.classList.add('show');
+    }
+    
+    resetScores() {
+        this.scores = { X: 0, O: 0 };
+        this.updateScores();
+        if (this.isOnline && this.isHost) {
+            this.sendData({ type: 'reset' });
+        }
+        this.initializeGame();
+    }
+    
+    updatePlayerDisplay() {
+        const playerX = document.getElementById('playerX');
+        const playerO = document.getElementById('playerO');
+        
+        playerX.classList.toggle('active', this.currentPlayer === 'X' && !this.botThinking);
+        playerO.classList.toggle('active', this.currentPlayer === 'O' && !this.botThinking);
+        
+        let botIndicator = playerO.querySelector('.bot-thinking');
+        if (this.botThinking && this.currentPlayer === 'O' && this.gameMode === 'pve') {
+            if (!botIndicator) {
+                botIndicator = document.createElement('div');
+                botIndicator.className = 'bot-thinking';
+                botIndicator.textContent = 'думает...';
+                playerO.appendChild(botIndicator);
+            }
+        } else if (botIndicator) {
+            botIndicator.remove();
+        }
+    }
+    
+    updateScores() {
+        document.getElementById('scoreX').textContent = this.scores.X;
+        document.getElementById('scoreO').textContent = this.scores.O;
+    }
+    
+    drawBoard() {
+        const hexSize = this.getHexSize();
+        const hexHeight = hexSize * Math.sqrt(3);
+        const hexWidth = hexSize * 2;
+        
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        for (let row = 0; row < this.boardSize; row++) {
+            for (let col = 0; col < this.boardSize; col++) {
+                const x = col * hexWidth * 0.75 + hexWidth / 2;
+                const y = row * hexHeight + (col % 2) * hexHeight / 2 + hexHeight / 2;
+                this.drawHex(x, y, hexSize, this.board[row][col], row, col);
+            }
+        }
+        
+        if (this.winningLine) {
+            this.drawWinningLine();
+        }
+    }
+    
+    drawHex(x, y, hexSize, value, row, col) {
+        this.ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+            const angle = Math.PI / 3 * i;
+            const hexX = x + hexSize * Math.cos(angle);
+            const hexY = y + hexSize * Math.sin(angle);
+            if (i === 0) this.ctx.moveTo(hexX, hexY);
+            else this.ctx.lineTo(hexX, hexY);
+        }
+        this.ctx.closePath();
+        
+        this.ctx.fillStyle = '#f8f9fa';
+        this.ctx.fill();
+        this.ctx.strokeStyle = '#ddd';
+        this.ctx.lineWidth = 2;
+        this.ctx.stroke();
+        
+        const cube = this.toCube(row, col);
+        this.ctx.fillStyle = '#999';
+        this.ctx.font = '8px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        
+        this.ctx.fillText(`${row},${col}`, x, y - hexSize * 0.3);
+        this.ctx.fillText(`${cube.q},${cube.r},${cube.s}`, x, y + hexSize * 0.3);
+        
+        if (value === 'X') {
+            this.ctx.strokeStyle = '#FF5252';
+            this.ctx.lineWidth = 3;
+            this.ctx.beginPath();
+            this.ctx.moveTo(x - hexSize*0.3, y - hexSize*0.3);
+            this.ctx.lineTo(x + hexSize*0.3, y + hexSize*0.3);
+            this.ctx.moveTo(x + hexSize*0.3, y - hexSize*0.3);
+            this.ctx.lineTo(x - hexSize*0.3, y + hexSize*0.3);
+            this.ctx.stroke();
+        } else if (value === 'O') {
+            this.ctx.strokeStyle = '#2196F3';
+            this.ctx.lineWidth = 3;
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, hexSize*0.25, 0, Math.PI * 2);
+            this.ctx.stroke();
+        }
+    }
+    
+    drawWinningLine() {
+        if (!this.winningLine || this.winningLine.length < 2) return;
+        
+        const hexSize = this.getHexSize();
+        const hexHeight = hexSize * Math.sqrt(3);
+        const hexWidth = hexSize * 2;
+        
+        this.ctx.strokeStyle = 'gold';
+        this.ctx.lineWidth = 6;
+        this.ctx.lineCap = 'round';
+        this.ctx.beginPath();
+        
+        const first = this.winningLine[0];
+        const firstX = first.col * hexWidth * 0.75 + hexWidth / 2;
+        const firstY = first.row * hexHeight + (first.col % 2) * hexHeight / 2 + hexHeight / 2;
+        this.ctx.moveTo(firstX, firstY);
+        
+        for (let i = 1; i < this.winningLine.length; i++) {
+            const cell = this.winningLine[i];
+            const cellX = cell.col * hexWidth * 0.75 + hexWidth / 2;
+            const cellY = cell.row * hexHeight + (cell.col % 2) * hexHeight / 2 + hexHeight / 2;
+            this.ctx.lineTo(cellX, cellY);
+        }
+        
+        this.ctx.stroke();
+    }
+    
+    // ОНЛАЙН-ФУНКЦИОНАЛЬНОСТЬ
+    createOnlineGame() {
+        this.isOnline = true;
+        this.isHost = true;
+        this.waitingForConnection = true;
+        
+        // Создаем Peer с случайным ID
+        this.peer = new Peer({
+            host: '0.peerjs.com',
+            port: 443,
+            path: '/',
+            pingInterval: 5000
         });
-    </script>
+        
+        this.peer.on('open', (id) => {
+            this.roomId = id;
+            this.updateConnectionStatus(`Комната создана! ID: ${id}`, 'success');
+            document.getElementById('roomInfo').innerHTML = `ID комнаты: <strong>${id}</strong><br>Ожидаем подключения...`;
+            document.getElementById('roomInfo').style.display = 'block';
+        });
+        
+        this.peer.on('connection', (conn) => {
+            this.connection = conn;
+            this.setupConnection();
+            this.waitingForConnection = false;
+            this.updateConnectionStatus('Игрок подключен! Начинаем игру...', 'success');
+            this.startOnlineGame();
+        });
+        
+        this.peer.on('error', (err) => {
+            console.error('Peer error:', err);
+            this.updateConnectionStatus('Ошибка подключения: ' + err.type, 'error');
+        });
+    }
+    
+    joinOnlineGame() {
+        const roomId = document.getElementById('roomIdInput').value.trim();
+        if (!roomId) {
+            alert('Введите ID комнаты');
+            return;
+        }
+        
+        this.isOnline = true;
+        this.isHost = false;
+        
+        this.peer = new Peer({
+            host: '0.peerjs.com',
+            port: 443,
+            path: '/',
+            pingInterval: 5000
+        });
+        
+        this.peer.on('open', (id) => {
+            this.roomId = roomId;
+            this.connection = this.peer.connect(roomId);
+            this.setupConnection();
+            this.updateConnectionStatus('Подключаемся к комнате...', 'info');
+        });
+        
+        this.peer.on('error', (err) => {
+            console.error('Peer error:', err);
+            this.updateConnectionStatus('Ошибка подключения: ' + err.type, 'error');
+        });
+    }
+    
+    setupConnection() {
+        this.connection.on('open', () => {
+            this.updateConnectionStatus('Подключено!', 'success');
+            if (!this.isHost) {
+                // Запрос текущего состояния у хоста
+                this.sendData({ type: 'request_state' });
+            }
+        });
+        
+        this.connection.on('data', (data) => {
+            this.handleOnlineData(data);
+        });
+        
+        this.connection.on('close', () => {
+            this.updateConnectionStatus('Соединение разорвано', 'error');
+            this.leaveOnlineGame();
+        });
+        
+        this.connection.on('error', (err) => {
+            console.error('Connection error:', err);
+            this.updateConnectionStatus('Ошибка соединения', 'error');
+        });
+    }
+    
+    handleOnlineData(data) {
+        switch (data.type) {
+            case 'game_state':
+                if (!this.isHost) {
+                    this.board = data.board;
+                    this.currentPlayer = data.currentPlayer;
+                    this.scores = data.scores;
+                    this.gameOver = data.gameOver;
+                    this.drawBoard();
+                    this.updatePlayerDisplay();
+                    this.updateScores();
+                }
+                break;
+                
+            case 'move':
+                if (!this.isHost) {
+                    this.board[data.row][data.col] = data.player;
+                    this.currentPlayer = data.nextPlayer;
+                    this.gameOver = data.gameOver;
+                    
+                    if (data.winner) {
+                        this.winningLine = data.winningLine;
+                        this.handleWin();
+                    } else if (data.gameOver) {
+                        this.handleDraw();
+                    }
+                    
+                    this.drawBoard();
+                    this.updatePlayerDisplay();
+                }
+                break;
+                
+            case 'reset':
+                this.initializeGame();
+                break;
+                
+            case 'request_state':
+                if (this.isHost) {
+                    this.sendGameState();
+                }
+                break;
+        }
+    }
+    
+    sendData(data) {
+        if (this.connection && this.connection.open) {
+            this.connection.send(data);
+        }
+    }
+    
+    sendGameState() {
+        this.sendData({
+            type: 'game_state',
+            board: this.board,
+            currentPlayer: this.currentPlayer,
+            scores: this.scores,
+            gameOver: this.gameOver
+        });
+    }
+    
+    startOnlineGame() {
+        this.initializeGame();
+        if (this.isHost) {
+            this.currentPlayer = 'X'; // Хост всегда X
+        } else {
+            this.currentPlayer = 'O'; // Клиент всегда O
+        }
+        this.updatePlayerDisplay();
+        this.sendGameState();
+    }
+    
+    updateConnectionStatus(message, type) {
+        const statusElement = document.getElementById('connectionStatus');
+        statusElement.textContent = message;
+        statusElement.style.display = 'block';
+        statusElement.style.background = type === 'success' ? '#d4edda' : 
+                                       type === 'error' ? '#f8d7da' : '#d1ecf1';
+        statusElement.style.color = type === 'success' ? '#155724' : 
+                                   type === 'error' ? '#721c24' : '#0c5460';
+    }
+    
+    leaveOnlineGame() {
+        if (this.connection) {
+            this.connection.close();
+        }
+        if (this.peer) {
+            this.peer.destroy();
+        }
+        this.isOnline = false;
+        this.initializeGame();
+    }
+}
+
+// Глобальные функции для кнопок HTML
+function createOnlineGame() {
+    const game = document.querySelector('script')._gameInstance;
+    if (game) {
+        game.createOnlineGame();
+    }
+}
+
+function joinOnlineGame() {
+    const game = document.querySelector('script')._gameInstance;
+    if (game) {
+        game.joinOnlineGame();
+    }
+}
+
+// Сохраняем экземпляр игры для глобального доступа
+document.addEventListener('DOMContentLoaded', () => {
+    const game = new HexagonalTicTacToe();
+    document.querySelector('script')._gameInstance = game;
+});
 </body>
 </html>
