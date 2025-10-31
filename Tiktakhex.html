@@ -342,7 +342,23 @@
                 <button class="mode-btn active" id="modePvP">👥 Игрок vs Игрок</button>
                 <button class="mode-btn" id="modePvE">🤖 Игрок vs Бот</button>
             </div>
-            
+            <div class="game-mode">
+    <button class="mode-btn active" id="modePvP">👥 Игрок vs Игрок</button>
+    <button class="mode-btn" id="modePvE">🤖 Игрок vs Бот</button>
+    <button class="mode-btn" id="modeOnline">🌐 Онлайн игра</button>
+</div>
+
+<div id="onlineLobby" style="display: none; background: rgba(255,255,255,0.95); padding: 20px; border-radius: 10px; margin: 15px 0;">
+    <h3>Онлайн игра</h3>
+    <div class="online-buttons">
+        <button onclick="createOnlineGame()" class="control-btn">Создать комнату</button>
+        <div style="margin: 10px 0; text-align: center">или</div>
+        <input type="text" id="roomIdInput" placeholder="ID комнаты" style="padding: 10px; width: 200px; margin-right: 10px;">
+        <button onclick="joinOnlineGame()" class="control-btn">Присоединиться</button>
+    </div>
+    <div id="connectionStatus" style="margin-top: 10px; padding: 10px; border-radius: 5px; display: none;"></div>
+    <div id="roomInfo" style="margin-top: 10px; font-weight: bold; display: none;"></div>
+</div>
             <div class="bot-difficulty" id="botDifficulty" style="display: none;">
                 <label>Сложность бота:</label>
                 <button class="difficulty-btn" data-depth="3">Средний</button>
