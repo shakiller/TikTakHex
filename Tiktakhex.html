@@ -362,15 +362,10 @@
         
         <div class="game-info">
             <div class="game-mode">
-                <button class="mode-btn active" id="modePvP">👥 Игрок vs Игрок</button>
-                <button class="mode-btn" id="modePvE">🤖 Игрок vs Бот</button>
-            </div>
-            <div class="game-mode">
     <button class="mode-btn active" id="modePvP">👥 Игрок vs Игрок</button>
     <button class="mode-btn" id="modePvE">🤖 Игрок vs Бот</button>
     <button class="mode-btn" id="modeOnline">🌐 Онлайн игра</button>
 </div>
-
 <div id="onlineLobby" style="display: none; background: rgba(255,255,255,0.95); padding: 20px; border-radius: 10px; margin: 15px 0;">
     <h3>Онлайн игра</h3>
     <div class="online-buttons">
@@ -378,6 +373,8 @@
         <div style="margin: 10px 0; text-align: center">или</div>
         <input type="text" id="roomIdInput" placeholder="ID комнаты" style="padding: 10px; width: 200px; margin-right: 10px;">
         <button onclick="joinOnlineGame()" class="control-btn">Присоединиться</button>
+        <br><br>
+        <button onclick="syncGame()" class="control-btn" style="background: #ff9800;">🔄 Sync</button>
     </div>
     <div id="connectionStatus" style="margin-top: 10px; padding: 10px; border-radius: 5px; display: none;"></div>
     <div id="roomInfo" style="margin-top: 10px; font-weight: bold; display: none;"></div>
@@ -423,7 +420,15 @@
             <p class="difficulty-info" id="difficultyInfo">Текущая сложность: Средний (5x5, линия из 4)</p>
         </div>
     </div>
-    <script>
+
+<script>
+// Глобальные функции для кнопок HTML
+function createOnlineGame() {
+    const game = document.querySelector('script')._gameInstance;
+    if (game) {
+        game.createOnlineGame();
+    }
+}
 class HexagonalTicTacToe {
     constructor() {
         this.canvas = document.getElementById('gameCanvas');
@@ -455,6 +460,7 @@ class HexagonalTicTacToe {
         this.isHost = false;
         this.roomId = null;
         this.waitingForConnection = false;
+        this.autoSyncInterval = null;
         
         this.initializeGame();
         this.setupEventListeners();
@@ -677,6 +683,7 @@ class HexagonalTicTacToe {
             winner = this.currentPlayer;
             winningLine = winResult;
             this.winningLine = winResult;
+            this.scores[this.currentPlayer]++;
             this.handleWin();
         } else if (this.isBoardFull()) {
             gameOver = true;
@@ -684,7 +691,7 @@ class HexagonalTicTacToe {
         }
         
         // Отправка хода другому игроку
-        this.sendData({
+        const moveData = {
             type: 'move',
             row: row,
             col: col,
@@ -692,8 +699,11 @@ class HexagonalTicTacToe {
             nextPlayer: this.currentPlayer === 'X' ? 'O' : 'X',
             gameOver: gameOver,
             winner: winner,
-            winningLine: winningLine
-        });
+            winningLine: winningLine,
+            scores: {...this.scores}
+        };
+        
+        this.sendData(moveData);
         
         if (!gameOver) {
             this.currentPlayer = this.currentPlayer === 'X' ? 'O' : 'X';
@@ -701,6 +711,7 @@ class HexagonalTicTacToe {
         
         this.drawBoard();
         this.updatePlayerDisplay();
+        this.updateScores();
     }
     
     // КУБИЧЕСКИЕ КООРДИНАТЫ
@@ -1292,6 +1303,7 @@ class HexagonalTicTacToe {
             this.waitingForConnection = false;
             this.updateConnectionStatus('Игрок подключен! Начинаем игру...', 'success');
             this.startOnlineGame();
+            this.startAutoSync();
         });
         
         this.peer.on('error', (err) => {
@@ -1322,6 +1334,7 @@ class HexagonalTicTacToe {
             this.connection = this.peer.connect(roomId);
             this.setupConnection();
             this.updateConnectionStatus('Подключаемся к комнате...', 'info');
+            this.startAutoSync();
         });
         
         this.peer.on('error', (err) => {
@@ -1335,7 +1348,9 @@ class HexagonalTicTacToe {
             this.updateConnectionStatus('Подключено!', 'success');
             if (!this.isHost) {
                 // Запрос текущего состояния у хоста
-                this.sendData({ type: 'request_state' });
+                setTimeout(() => {
+                    this.sendData({ type: 'request_state' });
+                }, 500);
             }
         });
         
@@ -1355,35 +1370,15 @@ class HexagonalTicTacToe {
     }
     
     handleOnlineData(data) {
+        console.log("Получены данные:", data.type, data);
+        
         switch (data.type) {
             case 'game_state':
-                if (!this.isHost) {
-                    this.board = data.board;
-                    this.currentPlayer = data.currentPlayer;
-                    this.scores = data.scores;
-                    this.gameOver = data.gameOver;
-                    this.drawBoard();
-                    this.updatePlayerDisplay();
-                    this.updateScores();
-                }
+                this.applyGameState(data);
                 break;
                 
             case 'move':
-                if (!this.isHost) {
-                    this.board[data.row][data.col] = data.player;
-                    this.currentPlayer = data.nextPlayer;
-                    this.gameOver = data.gameOver;
-                    
-                    if (data.winner) {
-                        this.winningLine = data.winningLine;
-                        this.handleWin();
-                    } else if (data.gameOver) {
-                        this.handleDraw();
-                    }
-                    
-                    this.drawBoard();
-                    this.updatePlayerDisplay();
-                }
+                this.applyMove(data);
                 break;
                 
             case 'reset':
@@ -1395,34 +1390,122 @@ class HexagonalTicTacToe {
                     this.sendGameState();
                 }
                 break;
+
+            case 'sync_response':
+                this.applyGameState(data);
+                break;
         }
+    }
+
+    // ПРИМЕНЕНИЕ СОСТОЯНИЯ ИГРЫ
+    applyGameState(data) {
+        this.board = data.board.map(row => [...row]);
+        this.currentPlayer = data.currentPlayer;
+        this.scores = {...data.scores};
+        this.gameOver = data.gameOver;
+        
+        if (data.winningLine) {
+            this.winningLine = data.winningLine;
+        } else {
+            this.winningLine = null;
+        }
+        
+        this.drawBoard();
+        this.updatePlayerDisplay();
+        this.updateScores();
+        
+        if (this.gameOver && this.winningLine) {
+            this.winMessage.classList.add('show');
+        } else {
+            this.winMessage.classList.remove('show');
+        }
+        
+        console.log("Состояние игры синхронизировано");
+        this.updateConnectionStatus("Игра синхронизирована", "success");
+    }
+
+    // ПРИМЕНЕНИЕ ХОДА
+    applyMove(data) {
+        this.board[data.row][data.col] = data.player;
+        this.currentPlayer = data.nextPlayer;
+        this.gameOver = data.gameOver;
+        
+        if (data.winner) {
+            this.winningLine = data.winningLine;
+            this.scores[data.winner]++;
+            this.handleWin();
+        } else if (data.gameOver) {
+            this.handleDraw();
+        }
+        
+        this.drawBoard();
+        this.updatePlayerDisplay();
+        this.updateScores();
     }
     
     sendData(data) {
         if (this.connection && this.connection.open) {
+            console.log("Отправка данных:", data.type, data);
             this.connection.send(data);
+            return true;
+        } else {
+            console.warn("Соединение не открыто, данные не отправлены");
+            this.updateConnectionStatus("Ошибка: нет соединения", "error");
+            return false;
         }
     }
     
     sendGameState() {
-        this.sendData({
+        const gameState = {
             type: 'game_state',
-            board: this.board,
+            board: this.board.map(row => [...row]),
             currentPlayer: this.currentPlayer,
-            scores: this.scores,
-            gameOver: this.gameOver
-        });
+            scores: {...this.scores},
+            gameOver: this.gameOver,
+            winningLine: this.winningLine
+        };
+        
+        this.sendData(gameState);
+        console.log("Состояние игры отправлено");
     }
     
     startOnlineGame() {
         this.initializeGame();
         if (this.isHost) {
-            this.currentPlayer = 'X'; // Хост всегда X
+            this.currentPlayer = 'X';
         } else {
-            this.currentPlayer = 'O'; // Клиент всегда O
+            this.currentPlayer = 'O';
+            // Автоматически запрашиваем состояние при подключении
+            setTimeout(() => {
+                this.sendData({ type: 'request_state' });
+            }, 1000);
         }
         this.updatePlayerDisplay();
-        this.sendGameState();
+        
+        // Автоматическая отправка состояния, если хост
+        if (this.isHost) {
+            setTimeout(() => {
+                this.sendGameState();
+            }, 500);
+        }
+    }
+
+    // АВТОМАТИЧЕСКАЯ СИНХРОНИЗАЦИЯ КАЖДЫЕ 30 СЕКУНД
+    startAutoSync() {
+        if (this.autoSyncInterval) {
+            clearInterval(this.autoSyncInterval);
+        }
+        
+        this.autoSyncInterval = setInterval(() => {
+            if (this.isOnline && this.connection && this.connection.open) {
+                if (this.isHost) {
+                    this.sendGameState();
+                } else {
+                    this.sendData({ type: 'request_state' });
+                }
+                console.log("Автосинхронизация выполнена");
+            }
+        }, 30000); // Синхронизация каждые 30 секунд
     }
     
     updateConnectionStatus(message, type) {
@@ -1436,6 +1519,9 @@ class HexagonalTicTacToe {
     }
     
     leaveOnlineGame() {
+        if (this.autoSyncInterval) {
+            clearInterval(this.autoSyncInterval);
+        }
         if (this.connection) {
             this.connection.close();
         }
@@ -1444,6 +1530,21 @@ class HexagonalTicTacToe {
         }
         this.isOnline = false;
         this.initializeGame();
+    }
+
+    // СИНХРОНИЗАЦИЯ ВРУЧНУЮ
+    syncGame() {
+        if (this.isOnline && this.connection && this.connection.open) {
+            if (this.isHost) {
+                this.sendGameState();
+                this.updateConnectionStatus("Состояние игры отправлено игроку", "success");
+            } else {
+                this.sendData({ type: 'request_state' });
+                this.updateConnectionStatus("Запрос синхронизации отправлен", "success");
+            }
+        } else {
+            this.updateConnectionStatus("Ошибка: нет подключения для синхронизации", "error");
+        }
     }
 }
 
@@ -1462,11 +1563,26 @@ function joinOnlineGame() {
     }
 }
 
+function syncGame() {
+    const game = document.querySelector('script')._gameInstance;
+    if (game) {
+        game.syncGame();
+    }
+}
+
 // Сохраняем экземпляр игры для глобального доступа
 document.addEventListener('DOMContentLoaded', () => {
     const game = new HexagonalTicTacToe();
     document.querySelector('script')._gameInstance = game;
 });
+function joinOnlineGame() {
+    const game = document.querySelector('script')._gameInstance;
+    if (game) {
+        game.joinOnlineGame();
+    }
+}
+
+
 </script>
 </body>
 </html>
