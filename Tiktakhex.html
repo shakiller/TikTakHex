@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Гексагональные Крестики-Нолики</title>
+    <!-- Yandex Games SDK -->
+    <script src="/sdk.js"></script>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         /* Все стили остаются без изменений */
@@ -1570,18 +1572,34 @@ function syncGame() {
     }
 }
 
-// Сохраняем экземпляр игры для глобального доступа
+// Инициализация Яндекс Games SDK и создание экземпляра игры
 document.addEventListener('DOMContentLoaded', () => {
-    const game = new HexagonalTicTacToe();
-    document.querySelector('script')._gameInstance = game;
-});
-function joinOnlineGame() {
-    const game = document.querySelector('script')._gameInstance;
-    if (game) {
-        game.joinOnlineGame();
+    // Проверяем наличие YaGames (может отсутствовать при локальной разработке)
+    if (typeof YaGames !== 'undefined') {
+        // Инициализация SDK Яндекс Игр
+        YaGames
+            .init()
+            .then(ysdk => {
+                console.log('Yandex SDK initialized');
+                window.ysdk = ysdk;
+                
+                // Создаем экземпляр игры после инициализации SDK
+                const game = new HexagonalTicTacToe();
+                document.querySelector('script')._gameInstance = game;
+            })
+            .catch(err => {
+                console.error('Failed to initialize Yandex SDK:', err);
+                // Создаем игру даже если SDK не инициализировался
+                const game = new HexagonalTicTacToe();
+                document.querySelector('script')._gameInstance = game;
+            });
+    } else {
+        // SDK не найден (локальная разработка), создаем игру без SDK
+        console.warn('Yandex Games SDK not found. Running in local mode.');
+        const game = new HexagonalTicTacToe();
+        document.querySelector('script')._gameInstance = game;
     }
-}
-
+});
 
 </script>
 </body>
