@@ -24,6 +24,11 @@
             align-items: center;
             padding: 20px;
             color: #333;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
         }
 
         .container {
@@ -159,6 +164,10 @@
             overflow: auto;
             max-width: 100%;
             position: relative;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
         }
 
         canvas {
@@ -167,6 +176,12 @@
             cursor: pointer;
             border: 2px solid #ddd;
             background: white;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .win-message {
@@ -464,6 +479,10 @@ class HexagonalTicTacToe {
         this.waitingForConnection = false;
         this.autoSyncInterval = null;
         
+        // Переменные для touch-событий
+        this.lastTouchX = undefined;
+        this.lastTouchY = undefined;
+        
         this.initializeGame();
         this.setupEventListeners();
     }
@@ -508,6 +527,75 @@ class HexagonalTicTacToe {
     
     setupEventListeners() {
         this.canvas.addEventListener('click', (e) => this.handleClick(e));
+        
+        // Полностью запрещаем правый клик на всём игровом поле
+        const gameBoard = document.getElementById('gameBoard');
+        if (gameBoard) {
+            gameBoard.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            });
+            gameBoard.addEventListener('selectstart', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            });
+        }
+        
+        // Предотвращаем контекстное меню и выделение на canvas
+        this.canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        });
+        this.canvas.addEventListener('selectstart', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        });
+        this.canvas.addEventListener('dragstart', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        });
+        this.canvas.addEventListener('mousedown', (e) => {
+            // Предотвращаем выделение при двойном клике
+            if (e.detail > 1) {
+                e.preventDefault();
+            }
+        });
+        // Предотвращаем выделение и контекстное меню на touch-устройствах
+        this.canvas.addEventListener('touchstart', (e) => {
+            // Предотвращаем выделение, но позволяем обработать клик
+            if (e.touches.length === 1) {
+                const touch = e.touches[0];
+                const rect = this.canvas.getBoundingClientRect();
+                const x = touch.clientX - rect.left;
+                const y = touch.clientY - rect.top;
+                // Сохраняем координаты для обработки в touchend
+                this.lastTouchX = x;
+                this.lastTouchY = y;
+            }
+        }, { passive: true });
+        this.canvas.addEventListener('touchmove', (e) => {
+            // Предотвращаем скролл и выделение
+            e.preventDefault();
+        }, { passive: false });
+        this.canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            // Обрабатываем клик как обычный клик мыши
+            if (this.lastTouchX !== undefined && this.lastTouchY !== undefined) {
+                const fakeEvent = {
+                    clientX: this.lastTouchX + this.canvas.getBoundingClientRect().left,
+                    clientY: this.lastTouchY + this.canvas.getBoundingClientRect().top
+                };
+                this.handleClick(fakeEvent);
+                this.lastTouchX = undefined;
+                this.lastTouchY = undefined;
+            }
+        }, { passive: false });
+        
         document.getElementById('newGameBtn').addEventListener('click', () => this.initializeGame());
         document.getElementById('resetBtn').addEventListener('click', () => this.resetScores());
         document.getElementById('applySettings').addEventListener('click', () => this.applySettings());
@@ -1571,6 +1659,17 @@ function syncGame() {
         game.syncGame();
     }
 }
+
+// Глобальный запрет правого клика на всей странице
+document.addEventListener('contextmenu', (e) => {
+    // Разрешаем правый клик только на элементах ввода (input, textarea, select)
+    const target = e.target;
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
+        return true;
+    }
+    e.preventDefault();
+    return false;
+});
 
 // Инициализация Яндекс Games SDK и создание экземпляра игры
 document.addEventListener('DOMContentLoaded', () => {
