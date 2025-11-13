@@ -1,0 +1,66 @@
+{
+  "game": {
+    "title": "Hexagonal Tic-Tac-Toe",
+    "instructions": "Collect a line of {length} pieces in one of 3 directions of the hexagonal grid!",
+    "difficulty": "Current difficulty: {difficulty} ({size}x{size}, line of {length})"
+  },
+  "settings": {
+    "boardSize": "Board size:",
+    "winLength": "Line length:",
+    "apply": "Apply settings"
+  },
+  "modes": {
+    "pvp": "👥 Player / Player",
+    "pve": "🤖 Player / Bot",
+    "online": "🌐 Online game"
+  },
+  "players": {
+    "playerX": "Player X",
+    "playerO": "Player O",
+    "botO": "Bot O",
+    "bot": "Bot"
+  },
+  "buttons": {
+    "newGame": "New game",
+    "resetScore": "Reset score",
+    "continue": "Continue",
+    "createRoom": "Create room",
+    "join": "Join",
+    "sync": "🔄 Sync",
+    "or": "or"
+  },
+  "online": {
+    "title": "Online game",
+    "roomIdPlaceholder": "Room ID",
+    "roomCreated": "Room created! ID: {id}",
+    "waitingConnection": "Waiting for connection...",
+    "playerConnected": "Player connected! Starting game...",
+    "connecting": "Connecting to room...",
+    "connected": "Connected!",
+    "disconnected": "Connection lost",
+    "error": "Connection error",
+    "roomIdLabel": "Room ID:"
+  },
+  "messages": {
+    "win": "{winner} won! 🎉",
+    "draw": "Draw! 🤝",
+    "thinking": "thinking...",
+    "winLine": "Winning line: {line}",
+    "errorLineLength": "Line length cannot be greater than board size! Maximum for {size}x{size} board: {max} in a row",
+    "enterRoomId": "Enter room ID"
+  },
+  "difficulty": {
+    "easy": "Easy",
+    "medium": "Medium",
+    "hard": "Hard",
+    "expert": "Expert",
+    "impossible": "IMPOSSIBLE"
+  },
+  "status": {
+    "gameStateSent": "Game state sent to player",
+    "syncRequestSent": "Sync request sent",
+    "syncError": "Error: no connection for sync",
+    "gameSynced": "Game synced"
+  }
+}
+

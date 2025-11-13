@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" id="htmlLang">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -567,6 +567,146 @@
     </div>
 
 <script>
+// СИСТЕМА ЛОКАЛИЗАЦИИ
+const i18n = {
+    translations: {},
+    currentLanguage: 'ru',
+    ready: false,
+    
+    // Загрузка переводов из JSON файлов
+    async loadTranslations(lang) {
+        try {
+            const response = await fetch(`/i18n/${lang}.json`);
+            if (response.ok) {
+                this.translations[lang] = await response.json();
+                return true;
+            }
+        } catch (error) {
+            console.error(`Failed to load ${lang}.json:`, error);
+        }
+        return false;
+    },
+    
+    // Инициализация локализации
+    async init(ysdk) {
+        // Определяем язык
+        let lang = 'ru';
+        if (ysdk && ysdk.environment && ysdk.environment.i18n) {
+            // Получаем язык из Яндекс SDK
+            const sdkLang = ysdk.environment.i18n.lang || 'ru';
+            lang = sdkLang.startsWith('en') ? 'en' : 'ru';
+        } else {
+            // Определяем язык из браузера
+            const browserLang = navigator.language || navigator.userLanguage;
+            lang = browserLang.startsWith('en') ? 'en' : 'ru';
+        }
+        
+        this.currentLanguage = lang;
+        
+        // Загружаем переводы для текущего языка и русского (как fallback)
+        await Promise.all([
+            this.loadTranslations(lang),
+            lang !== 'ru' ? this.loadTranslations('ru') : Promise.resolve(true)
+        ]);
+        
+        // Обновляем атрибут lang в HTML
+        document.documentElement.lang = this.currentLanguage;
+        
+        this.ready = true;
+        this.localize();
+        
+        return this.ready;
+    },
+    
+    // Получение переведенной строки
+    key(path, params = {}) {
+        const keys = path.split('.');
+        let value = this.translations[this.currentLanguage];
+        
+        for (const key of keys) {
+            if (value && value[key]) {
+                value = value[key];
+            } else {
+                // Fallback на русский
+                value = this.translations.ru;
+                for (const k of keys) {
+                    value = value && value[k] ? value[k] : path;
+                }
+                break;
+            }
+        }
+        
+        // Замена параметров
+        if (typeof value === 'string' && params) {
+            Object.keys(params).forEach(key => {
+                value = value.replace(`{${key}}`, params[key]);
+            });
+        }
+        
+        return typeof value === 'string' ? value : path;
+    },
+    
+    // Локализация элементов интерфейса
+    gui(elementId, key, params) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.textContent = this.key(key, params);
+        }
+    },
+    
+    // Локализация всех элементов
+    localize() {
+        // Заголовок
+        document.querySelector('h1').textContent = this.key('game.title');
+        document.title = this.key('game.title');
+        
+        // Настройки
+        const boardSizeLabel = document.querySelector('label[for="boardSizeSelect"]');
+        if (boardSizeLabel) boardSizeLabel.textContent = this.key('settings.boardSize');
+        
+        const winLengthLabel = document.querySelector('label[for="winLengthSelect"]');
+        if (winLengthLabel) winLengthLabel.textContent = this.key('settings.winLength');
+        
+        this.gui('applySettings', 'settings.apply');
+        
+        // Режимы игры
+        this.gui('modePvP', 'modes.pvp');
+        this.gui('modePvE', 'modes.pve');
+        this.gui('modeOnline', 'modes.online');
+        
+        // Кнопки
+        this.gui('newGameBtn', 'buttons.newGame');
+        this.gui('resetBtn', 'buttons.resetScore');
+        this.gui('continueBtn', 'buttons.continue');
+        
+        // Онлайн
+        const onlineTitle = document.querySelector('#onlineLobby h3');
+        if (onlineTitle) onlineTitle.textContent = this.key('online.title');
+        
+        const roomIdInput = document.getElementById('roomIdInput');
+        if (roomIdInput) roomIdInput.placeholder = this.key('online.roomIdPlaceholder');
+        
+        // Обновляем динамические элементы через игру
+        if (window.gameInstance) {
+            window.gameInstance.updateLocalization();
+        }
+    },
+    
+    // Смена языка
+    async setLanguage(code) {
+        const lang = code.startsWith('en') ? 'en' : 'ru';
+        
+        // Загружаем переводы для нового языка, если еще не загружены
+        if (!this.translations[lang]) {
+            await this.loadTranslations(lang);
+        }
+        
+        this.currentLanguage = lang;
+        document.documentElement.lang = this.currentLanguage;
+        this.localize();
+    }
+};
+
 // Глобальные функции для кнопок HTML
 function createOnlineGame() {
     const game = document.querySelector('script')._gameInstance;
@@ -581,6 +721,9 @@ class HexagonalTicTacToe {
         this.winMessage = document.getElementById('winMessage');
         this.winText = document.getElementById('winText');
         this.winCellsInfo = document.getElementById('winCellsInfo');
+        
+        // Сохраняем ссылку на экземпляр для локализации
+        window.gameInstance = this;
         
         // Настройки по умолчанию
         this.boardSize = 5;
@@ -795,10 +938,10 @@ class HexagonalTicTacToe {
         
         if (this.gameMode === 'pve') {
             playerO.classList.add('player-bot');
-            playerO.querySelector('div:first-child').textContent = 'Бот O';
+            playerO.querySelector('div:first-child').textContent = i18n.key('players.botO');
         } else {
             playerO.classList.remove('player-bot');
-            playerO.querySelector('div:first-child').textContent = 'Игрок O';
+            playerO.querySelector('div:first-child').textContent = i18n.key('players.playerO');
         }
     }
     
@@ -807,7 +950,7 @@ class HexagonalTicTacToe {
         const newWinLength = parseInt(document.getElementById('winLengthSelect').value);
         
         if (newWinLength > newSize) {
-            alert(`Длина линии не может быть больше размера поля! Максимум для поля ${newSize}x${newSize}: ${newSize} в ряд`);
+            alert(i18n.key('messages.errorLineLength', { size: newSize, max: newSize }));
             return;
         }
         
@@ -824,10 +967,24 @@ class HexagonalTicTacToe {
     }
     
     updateDifficultyInfo() {
-        const sizeNames = {'4': 'Простой', '5': 'Средний', '6': 'Сложный', '7': 'Эксперт'};
+        const sizeNames = {
+            '4': i18n.key('difficulty.easy'),
+            '5': i18n.key('difficulty.medium'),
+            '6': i18n.key('difficulty.hard'),
+            '7': i18n.key('difficulty.expert')
+        };
         document.getElementById('currentWinLength').textContent = this.winLength;
-        document.getElementById('difficultyInfo').textContent = 
-            `Текущая сложность: ${sizeNames[this.boardSize]} (${this.boardSize}x${this.boardSize}, линия из ${this.winLength})`;
+        document.getElementById('difficultyInfo').textContent = i18n.key('game.difficulty', {
+            difficulty: sizeNames[this.boardSize],
+            size: this.boardSize,
+            length: this.winLength
+        });
+        
+        // Обновляем инструкции
+        const instructions = document.querySelector('.instructions p');
+        if (instructions) {
+            instructions.textContent = i18n.key('game.instructions', { length: this.winLength });
+        }
     }
     
     
@@ -1496,11 +1653,13 @@ class HexagonalTicTacToe {
         this.scores[this.currentPlayer]++;
         this.updateScores();
         
-        const winner = this.gameMode === 'pve' && this.currentPlayer === 'O' ? 'Бот' : `Игрок ${this.currentPlayer}`;
-        this.winText.textContent = `${winner} победил! 🎉`;
+        const winner = this.gameMode === 'pve' && this.currentPlayer === 'O' 
+            ? i18n.key('players.bot') 
+            : i18n.key('players.playerX').replace('X', this.currentPlayer);
+        this.winText.textContent = i18n.key('messages.win', { winner });
         
         const cellsInfo = this.winningLine.map(cell => `[${cell.row},${cell.col}]`).join(' → ');
-        this.winCellsInfo.textContent = `Выигрышная линия: ${cellsInfo}`;
+        this.winCellsInfo.textContent = i18n.key('messages.winLine', { line: cellsInfo });
         
         // Сообщаем об остановке геймплея (игра завершена)
         this.stopGameplay();
@@ -1510,7 +1669,7 @@ class HexagonalTicTacToe {
     
     handleDraw() {
         this.gameOver = true;
-        this.winText.textContent = 'Ничья! 🤝';
+        this.winText.textContent = i18n.key('messages.draw');
         this.winCellsInfo.textContent = '';
         
         // Сообщаем об остановке геймплея (игра завершена)
@@ -1543,6 +1702,46 @@ class HexagonalTicTacToe {
         }
     }
     
+    // Обновление локализации динамических элементов
+    updateLocalization() {
+        // Обновляем имена игроков
+        const playerX = document.getElementById('playerX');
+        if (playerX) {
+            playerX.querySelector('div:first-child').textContent = i18n.key('players.playerX');
+        }
+        
+        const playerO = document.getElementById('playerO');
+        if (playerO && this.gameMode !== 'pve') {
+            playerO.querySelector('div:first-child').textContent = i18n.key('players.playerO');
+        }
+        
+        // Обновляем сложность бота
+        const difficultyLabels = document.querySelectorAll('.bot-difficulty .difficulty-btn');
+        if (difficultyLabels.length >= 3) {
+            difficultyLabels[0].textContent = i18n.key('difficulty.medium');
+            difficultyLabels[1].textContent = i18n.key('difficulty.hard');
+            difficultyLabels[2].textContent = i18n.key('difficulty.impossible');
+        }
+        
+        // Обновляем онлайн кнопки
+        const createRoomBtn = document.querySelector('button[onclick="createOnlineGame()"]');
+        if (createRoomBtn) createRoomBtn.textContent = i18n.key('buttons.createRoom');
+        
+        const joinBtn = document.querySelector('button[onclick="joinOnlineGame()"]');
+        if (joinBtn) joinBtn.textContent = i18n.key('buttons.join');
+        
+        const syncBtn = document.querySelector('button[onclick="syncGame()"]');
+        if (syncBtn) syncBtn.textContent = i18n.key('buttons.sync');
+        
+        const orText = document.querySelector('#onlineLobby .online-buttons div');
+        if (orText && (orText.textContent.includes('или') || orText.textContent.includes('or'))) {
+            orText.textContent = i18n.key('buttons.or');
+        }
+        
+        // Обновляем информацию о сложности
+        this.updateDifficultyInfo();
+    }
+    
     updatePlayerDisplay() {
         const playerX = document.getElementById('playerX');
         const playerO = document.getElementById('playerO');
@@ -1555,7 +1754,7 @@ class HexagonalTicTacToe {
             if (!botIndicator) {
                 botIndicator = document.createElement('div');
                 botIndicator.className = 'bot-thinking';
-                botIndicator.textContent = 'думает...';
+                botIndicator.textContent = i18n.key('messages.thinking');
                 playerO.appendChild(botIndicator);
             }
         } else if (botIndicator) {
@@ -1675,8 +1874,8 @@ class HexagonalTicTacToe {
         
         this.peer.on('open', (id) => {
             this.roomId = id;
-            this.updateConnectionStatus(`Комната создана! ID: ${id}`, 'success');
-            document.getElementById('roomInfo').innerHTML = `ID комнаты: <strong>${id}</strong><br>Ожидаем подключения...`;
+            this.updateConnectionStatus(i18n.key('online.roomCreated', { id }), 'success');
+            document.getElementById('roomInfo').innerHTML = `${i18n.key('online.roomIdLabel')} <strong>${id}</strong><br>${i18n.key('online.waitingConnection')}`;
             document.getElementById('roomInfo').style.display = 'block';
         });
         
@@ -1684,21 +1883,21 @@ class HexagonalTicTacToe {
             this.connection = conn;
             this.setupConnection();
             this.waitingForConnection = false;
-            this.updateConnectionStatus('Игрок подключен! Начинаем игру...', 'success');
+            this.updateConnectionStatus(i18n.key('online.playerConnected'), 'success');
             this.startOnlineGame();
             this.startAutoSync();
         });
         
         this.peer.on('error', (err) => {
             console.error('Peer error:', err);
-            this.updateConnectionStatus('Ошибка подключения: ' + err.type, 'error');
+            this.updateConnectionStatus(i18n.key('online.error') + ': ' + err.type, 'error');
         });
     }
     
     joinOnlineGame() {
         const roomId = document.getElementById('roomIdInput').value.trim();
         if (!roomId) {
-            alert('Введите ID комнаты');
+            alert(i18n.key('messages.enterRoomId'));
             return;
         }
         
@@ -1716,19 +1915,19 @@ class HexagonalTicTacToe {
             this.roomId = roomId;
             this.connection = this.peer.connect(roomId);
             this.setupConnection();
-            this.updateConnectionStatus('Подключаемся к комнате...', 'info');
+            this.updateConnectionStatus(i18n.key('online.connecting'), 'info');
             this.startAutoSync();
         });
         
         this.peer.on('error', (err) => {
             console.error('Peer error:', err);
-            this.updateConnectionStatus('Ошибка подключения: ' + err.type, 'error');
+            this.updateConnectionStatus(i18n.key('online.error') + ': ' + err.type, 'error');
         });
     }
     
     setupConnection() {
         this.connection.on('open', () => {
-            this.updateConnectionStatus('Подключено!', 'success');
+            this.updateConnectionStatus(i18n.key('online.connected'), 'success');
             if (!this.isHost) {
                 // Запрос текущего состояния у хоста
                 setTimeout(() => {
@@ -1742,13 +1941,13 @@ class HexagonalTicTacToe {
         });
         
         this.connection.on('close', () => {
-            this.updateConnectionStatus('Соединение разорвано', 'error');
+            this.updateConnectionStatus(i18n.key('online.disconnected'), 'error');
             this.leaveOnlineGame();
         });
         
         this.connection.on('error', (err) => {
             console.error('Connection error:', err);
-            this.updateConnectionStatus('Ошибка соединения', 'error');
+            this.updateConnectionStatus(i18n.key('online.error'), 'error');
         });
     }
     
@@ -1808,7 +2007,7 @@ class HexagonalTicTacToe {
         }
         
         console.log("Состояние игры синхронизировано");
-        this.updateConnectionStatus("Игра синхронизирована", "success");
+        this.updateConnectionStatus(i18n.key('status.gameSynced'), "success");
     }
 
     // ПРИМЕНЕНИЕ ХОДА
@@ -1840,7 +2039,7 @@ class HexagonalTicTacToe {
             return true;
         } else {
             console.warn("Соединение не открыто, данные не отправлены");
-            this.updateConnectionStatus("Ошибка: нет соединения", "error");
+            this.updateConnectionStatus(i18n.key('status.syncError'), "error");
             return false;
         }
     }
@@ -1927,13 +2126,13 @@ class HexagonalTicTacToe {
         if (this.isOnline && this.connection && this.connection.open) {
             if (this.isHost) {
                 this.sendGameState();
-                this.updateConnectionStatus("Состояние игры отправлено игроку", "success");
+                this.updateConnectionStatus(i18n.key('status.gameStateSent'), "success");
             } else {
                 this.sendData({ type: 'request_state' });
-                this.updateConnectionStatus("Запрос синхронизации отправлен", "success");
+                this.updateConnectionStatus(i18n.key('status.syncRequestSent'), "success");
             }
         } else {
-            this.updateConnectionStatus("Ошибка: нет подключения для синхронизации", "error");
+            this.updateConnectionStatus(i18n.key('status.syncError'), "error");
         }
     }
 }
@@ -1982,9 +2181,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('Yandex SDK initialized');
                 window.ysdk = ysdk;
                 
-                // Создаем экземпляр игры после инициализации SDK
-                const game = new HexagonalTicTacToe();
-                document.querySelector('script')._gameInstance = game;
+                // Инициализируем локализацию и создаем игру после загрузки переводов
+                i18n.init(ysdk).then(() => {
+                    // Создаем экземпляр игры после загрузки переводов
+                    const game = new HexagonalTicTacToe();
+                    document.querySelector('script')._gameInstance = game;
+                    
+                    // Сообщаем платформе, что игра загрузилась и готова к взаимодействию
+                    if (ysdk.features && ysdk.features.LoadingAPI) {
+                        ysdk.features.LoadingAPI.ready();
+                        console.log('Game Ready API: ready() called');
+                    }
+                });
                 
                 // Сообщаем платформе, что игра загрузилась и готова к взаимодействию
                 if (ysdk.features && ysdk.features.LoadingAPI) {
@@ -1994,15 +2202,20 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             .catch(err => {
                 console.error('Failed to initialize Yandex SDK:', err);
-                // Создаем игру даже если SDK не инициализировался
-                const game = new HexagonalTicTacToe();
-                document.querySelector('script')._gameInstance = game;
+                // Инициализируем локализацию без SDK и создаем игру
+                i18n.init(null).then(() => {
+                    const game = new HexagonalTicTacToe();
+                    document.querySelector('script')._gameInstance = game;
+                });
             });
     } else {
         // SDK не найден (локальная разработка), создаем игру без SDK
         console.warn('Yandex Games SDK not found. Running in local mode.');
-        const game = new HexagonalTicTacToe();
-        document.querySelector('script')._gameInstance = game;
+        // Инициализируем локализацию без SDK
+        i18n.init(null).then(() => {
+            const game = new HexagonalTicTacToe();
+            document.querySelector('script')._gameInstance = game;
+        });
     }
 });
 
