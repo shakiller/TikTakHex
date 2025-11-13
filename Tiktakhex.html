@@ -648,23 +648,23 @@ class HexagonalTicTacToe {
         const maxWidth = gameBoard ? gameBoard.clientWidth - 20 : canvasWidth;
         const maxHeight = gameBoard ? gameBoard.clientHeight - 20 : canvasHeight;
         
+        // Проверяем, является ли это десктопной версией (ширина экрана больше 768px)
+        const isDesktop = window.innerWidth > 768;
+        const desktopScale = isDesktop ? 1.5 : 1;
+        
         // Вычисляем масштаб для вписывания в контейнер
-        const scaleX = maxWidth / canvasWidth;
-        const scaleY = maxHeight / canvasHeight;
-        const scale = Math.min(scaleX, scaleY, 1); // Не увеличиваем, только уменьшаем
+        const scaleX = maxWidth / (canvasWidth * desktopScale);
+        const scaleY = maxHeight / (canvasHeight * desktopScale);
+        const scale = Math.min(scaleX, scaleY, 1); // Не увеличиваем больше 1, только уменьшаем если нужно
         
         // Устанавливаем размеры canvas
         this.canvas.width = canvasWidth;
         this.canvas.height = canvasHeight;
         
-        // Применяем масштаб через CSS, если нужно
-        if (scale < 1) {
-            this.canvas.style.width = (canvasWidth * scale) + 'px';
-            this.canvas.style.height = (canvasHeight * scale) + 'px';
-        } else {
-            this.canvas.style.width = '';
-            this.canvas.style.height = '';
-        }
+        // Применяем масштаб через CSS
+        const finalScale = scale * desktopScale;
+        this.canvas.style.width = (canvasWidth * finalScale) + 'px';
+        this.canvas.style.height = (canvasHeight * finalScale) + 'px';
         
         this.drawBoard();
     }
@@ -768,6 +768,8 @@ class HexagonalTicTacToe {
     
     setGameMode(mode) {
         this.gameMode = mode;
+        // Сбрасываем флаг бота при смене режима
+        this.botThinking = false;
         this.updateGameModeDisplay();
         
         // Показываем/скрываем онлайн-лобби
@@ -838,9 +840,12 @@ class HexagonalTicTacToe {
                 (!this.isHost && this.currentPlayer !== 'O')) {
                 return;
             }
-        } else if (this.gameMode === 'pve' && this.currentPlayer === 'O') {
+        } 
+        // В режиме PvE блокируем клики, когда ходит бот
+        else if (this.gameMode === 'pve' && this.currentPlayer === 'O') {
             return;
         }
+        // В режиме PvP оба игрока могут кликать - проверка не нужна
         
         const rect = this.canvas.getBoundingClientRect();
         // Учитываем масштаб canvas
@@ -856,6 +861,7 @@ class HexagonalTicTacToe {
             } else {
                 this.makeMove(hex.row, hex.col);
                 
+                // После хода в режиме PvE запускаем бота, если нужно
                 if (this.gameMode === 'pve' && !this.gameOver && this.currentPlayer === 'O') {
                     this.botThinking = true;
                     this.updatePlayerDisplay();
@@ -904,7 +910,12 @@ class HexagonalTicTacToe {
         } else if (this.isBoardFull()) {
             this.handleDraw();
         } else {
+            // Переключаем игрока
             this.currentPlayer = this.currentPlayer === 'X' ? 'O' : 'X';
+            // Убеждаемся, что botThinking сброшен в режиме PvP
+            if (this.gameMode === 'pvp') {
+                this.botThinking = false;
+            }
             this.updatePlayerDisplay();
         }
         
@@ -1049,24 +1060,132 @@ class HexagonalTicTacToe {
     makeBotMove() {
         if (this.gameOver) return;
         
-        console.time('BotThinking');
-        let move;
-        
-        if (this.boardSize <= 6) {
-            // Для маленьких досок - полный перебор с оптимизациями
-            move = this.advancedMinimax(this.botDifficulty, -Infinity, Infinity, 'O').move;
-        } else {
-            // Для больших досок - продвинутая эвристика
-            move = this.findAdvancedMove();
-        }
-        
-        console.timeEnd('BotThinking');
-        
-        if (move) {
-            this.makeMove(move.row, move.col);
-        }
-        this.botThinking = false;
+        // Используем асинхронный подход для предотвращения зависания браузера
+        this.botThinking = true;
         this.updatePlayerDisplay();
+        
+        // Небольшая задержка для обновления UI
+        setTimeout(() => {
+            let move;
+            
+            // Для больших досок или высоких уровней сложности используем упрощенный алгоритм
+            if (this.boardSize > 5 || this.botDifficulty > 5) {
+                // Для больших досок - быстрая эвристика без полного перебора
+                move = this.findAdvancedMove();
+            } else {
+                // Для маленьких досок - ограниченный minimax с таймаутом
+                move = this.quickMinimax(this.botDifficulty, 'O');
+            }
+            
+            if (move) {
+                this.makeMove(move.row, move.col);
+            }
+            this.botThinking = false;
+            this.updatePlayerDisplay();
+        }, 100);
+    }
+    
+    // Быстрый minimax с ограничением времени
+    quickMinimax(maxDepth, player) {
+        const startTime = Date.now();
+        const maxTime = 2000; // Максимум 2 секунды на ход
+        
+        let bestMove = null;
+        let bestScore = player === 'O' ? -Infinity : Infinity;
+        
+        const moves = this.getSmartMoves();
+        
+        // Ограничиваем количество рассматриваемых ходов для скорости
+        const movesToCheck = Math.min(moves.length, 15);
+        
+        for (let i = 0; i < movesToCheck; i++) {
+            // Проверяем время выполнения
+            if (Date.now() - startTime > maxTime) {
+                break;
+            }
+            
+            const move = moves[i];
+            this.board[move.row][move.col] = player;
+            
+            let score;
+            if (maxDepth <= 1 || Date.now() - startTime > maxTime * 0.7) {
+                // Быстрая оценка без рекурсии
+                score = this.advancedEvaluateBoard();
+            } else {
+                // Рекурсивный поиск с уменьшенной глубиной
+                const result = this.quickMinimaxRecursive(maxDepth - 1, -Infinity, Infinity, player === 'O' ? 'X' : 'O', startTime, maxTime);
+                score = result.score;
+            }
+            
+            this.board[move.row][move.col] = '';
+            
+            if (player === 'O') {
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestMove = move;
+                }
+            } else {
+                if (score < bestScore) {
+                    bestScore = score;
+                    bestMove = move;
+                }
+            }
+        }
+        
+        return bestMove || moves[0]; // Возвращаем лучший ход или первый доступный
+    }
+    
+    // Рекурсивная часть быстрого minimax
+    quickMinimaxRecursive(depth, alpha, beta, player, startTime, maxTime) {
+        // Проверка времени
+        if (Date.now() - startTime > maxTime) {
+            return { score: this.advancedEvaluateBoard(), move: null };
+        }
+        
+        // Быстрая проверка терминальных состояний
+        const win = this.checkWin();
+        if (win) {
+            const score = (this.board[win[0].row][win[0].col] === 'O' ? 10000 : -10000) * (depth + 1);
+            return { score, move: null };
+        }
+        
+        if (this.isBoardFull() || depth === 0) {
+            const score = this.advancedEvaluateBoard();
+            return { score, move: null };
+        }
+        
+        let bestScore = player === 'O' ? -Infinity : Infinity;
+        const moves = this.getSmartMoves();
+        
+        // Ограничиваем количество ходов для скорости
+        const movesToCheck = Math.min(moves.length, 10);
+        
+        for (let i = 0; i < movesToCheck; i++) {
+            if (Date.now() - startTime > maxTime) break;
+            
+            const move = moves[i];
+            this.board[move.row][move.col] = player;
+            
+            const result = this.quickMinimaxRecursive(depth - 1, alpha, beta, player === 'O' ? 'X' : 'O', startTime, maxTime);
+            
+            this.board[move.row][move.col] = '';
+            
+            if (player === 'O') {
+                if (result.score > bestScore) {
+                    bestScore = result.score;
+                }
+                alpha = Math.max(alpha, bestScore);
+            } else {
+                if (result.score < bestScore) {
+                    bestScore = result.score;
+                }
+                beta = Math.min(beta, bestScore);
+            }
+            
+            if (beta <= alpha) break;
+        }
+        
+        return { score: bestScore, move: null };
     }
     
     // ПРОДВИНУТЫЙ МИНИМАКС С ОПТИМИЗАЦИЯМИ
