@@ -627,6 +627,9 @@ class HexagonalTicTacToe {
         this.updateCanvasSize();
         this.drawBoard();
         
+        // Сообщаем о старте геймплея
+        this.startGameplay();
+        
         if (this.gameMode === 'pve' && this.currentPlayer === 'O') {
             setTimeout(() => this.makeBotMove(), 500);
         }
@@ -1380,6 +1383,9 @@ class HexagonalTicTacToe {
         const cellsInfo = this.winningLine.map(cell => `[${cell.row},${cell.col}]`).join(' → ');
         this.winCellsInfo.textContent = `Выигрышная линия: ${cellsInfo}`;
         
+        // Сообщаем об остановке геймплея (игра завершена)
+        this.stopGameplay();
+        
         this.winMessage.classList.add('show');
     }
     
@@ -1387,6 +1393,10 @@ class HexagonalTicTacToe {
         this.gameOver = true;
         this.winText.textContent = 'Ничья! 🤝';
         this.winCellsInfo.textContent = '';
+        
+        // Сообщаем об остановке геймплея (игра завершена)
+        this.stopGameplay();
+        
         this.winMessage.classList.add('show');
     }
     
@@ -1397,6 +1407,21 @@ class HexagonalTicTacToe {
             this.sendData({ type: 'reset' });
         }
         this.initializeGame();
+    }
+    
+    // Методы для Game Ready API
+    startGameplay() {
+        if (window.ysdk && window.ysdk.features && window.ysdk.features.GameplayAPI) {
+            window.ysdk.features.GameplayAPI.start();
+            console.log('GameplayAPI: start() called');
+        }
+    }
+    
+    stopGameplay() {
+        if (window.ysdk && window.ysdk.features && window.ysdk.features.GameplayAPI) {
+            window.ysdk.features.GameplayAPI.stop();
+            console.log('GameplayAPI: stop() called');
+        }
     }
     
     updatePlayerDisplay() {
@@ -1654,8 +1679,12 @@ class HexagonalTicTacToe {
         this.updateScores();
         
         if (this.gameOver && this.winningLine) {
+            // Игра завершена - останавливаем геймплей
+            this.stopGameplay();
             this.winMessage.classList.add('show');
         } else {
+            // Игра активна - запускаем геймплей
+            this.startGameplay();
             this.winMessage.classList.remove('show');
         }
         
@@ -1675,6 +1704,9 @@ class HexagonalTicTacToe {
             this.handleWin();
         } else if (data.gameOver) {
             this.handleDraw();
+        } else {
+            // Игра продолжается - запускаем геймплей
+            this.startGameplay();
         }
         
         this.drawBoard();
@@ -1834,6 +1866,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Создаем экземпляр игры после инициализации SDK
                 const game = new HexagonalTicTacToe();
                 document.querySelector('script')._gameInstance = game;
+                
+                // Сообщаем платформе, что игра загрузилась и готова к взаимодействию
+                if (ysdk.features && ysdk.features.LoadingAPI) {
+                    ysdk.features.LoadingAPI.ready();
+                    console.log('Game Ready API: ready() called');
+                }
             })
             .catch(err => {
                 console.error('Failed to initialize Yandex SDK:', err);
