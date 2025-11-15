@@ -6,7 +6,6 @@
     <title>Гексагональные Крестики-Нолики</title>
     <!-- Yandex Games SDK -->
     <script src="/sdk.js"></script>
-    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <style>
         /* Все стили остаются без изменений */
         * {
@@ -489,23 +488,26 @@
         
         <div class="settings">
             <div class="setting-group">
-                <label>Размер поля:</label>
+                <label id="boardSizeLabel">Размер поля:</label>
                 <select id="boardSizeSelect">
-                    <option value="4">4x4</option>
-                    <option value="5" selected>5x5</option>
-                    <option value="6">6x6</option>
-                    <option value="7">7x7</option>
+                    <option value="4" id="boardSize4">4x4</option>
+                    <option value="5" id="boardSize5" selected>5x5</option>
+                    <option value="6" id="boardSize6">6x6</option>
+                    <option value="7" id="boardSize7">7x7</option>
                 </select>
             </div>
             <div class="setting-group">
-                <label>Длина линии:</label>
+                <label id="winLengthLabel">Длина линии:</label>
                 <select id="winLengthSelect">
-                    <option value="3">3 в ряд</option>
-                    <option value="4" selected>4 в ряд</option>
-                    <option value="5">5 в ряд</option>
+                    <option value="3" id="winLength3">3 в ряд</option>
+                    <option value="4" id="winLength4" selected>4 в ряд</option>
+                    <option value="5" id="winLength5">5 в ряд</option>
                 </select>
             </div>
             <button id="applySettings">Применить настройки</button>
+            <div class="setting-group" style="margin-left: 10px;">
+                <button id="langToggle" onclick="toggleLanguage()" style="padding: 4px 8px; font-size: 0.9em; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer;">🇬🇧 EN</button>
+            </div>
         </div>
         
         <div class="game-info">
@@ -515,32 +517,28 @@
     <button class="mode-btn" id="modeOnline">🌐 Онлайн игра</button>
 </div>
 <div id="onlineLobby" style="display: none; background: rgba(255,255,255,0.95); padding: 5px; border-radius: 5px; margin: 3px 0;">
-    <h3 style="margin: 3px 0; font-size: 0.9em;">Онлайн игра</h3>
+    <h3 id="onlineTitle" style="margin: 3px 0; font-size: 0.9em;">Онлайн игра</h3>
     <div class="online-buttons">
-        <button onclick="createOnlineGame()" class="control-btn" style="font-size: 0.8em; padding: 4px 10px;">Создать комнату</button>
-        <div style="margin: 3px 0; text-align: center; font-size: 0.8em;">или</div>
-        <input type="text" id="roomIdInput" placeholder="ID комнаты" style="padding: 4px; width: 150px; margin-right: 5px; font-size: 0.8em;">
-        <button onclick="joinOnlineGame()" class="control-btn" style="font-size: 0.8em; padding: 4px 10px;">Присоединиться</button>
-        <br>
-        <button onclick="syncGame()" class="control-btn" style="background: #ff9800; font-size: 0.8em; padding: 4px 10px; margin-top: 3px;">🔄 Синхронизация</button>
+        <button onclick="createOnlineGame()" id="startOnlineBtn" class="control-btn" style="font-size: 0.8em; padding: 4px 10px;">Начать игру</button>
+        <p id="onlineDescription" style="margin: 5px 0; font-size: 0.75em; color: #666;">Играйте против записанных сессий других игроков</p>
     </div>
     <div id="connectionStatus" style="margin-top: 5px; padding: 5px; border-radius: 5px; display: none; font-size: 0.8em;"></div>
     <div id="roomInfo" style="margin-top: 5px; font-weight: bold; display: none; font-size: 0.8em;"></div>
 </div>
             <div class="bot-difficulty" id="botDifficulty" style="display: none;">
-                <label>Сложность бота:</label>
-                <button class="difficulty-btn" data-depth="3">Средний</button>
-                <button class="difficulty-btn active" data-depth="5">Сложный</button>
-                <button class="difficulty-btn impossible-btn" data-depth="7">НЕВОЗМОЖНО</button>
+                <label id="botDifficultyLabel">Сложность бота:</label>
+                <button class="difficulty-btn" data-depth="3" id="difficultyMedium">Средний</button>
+                <button class="difficulty-btn active" data-depth="5" id="difficultyHard">Сложный</button>
+                <button class="difficulty-btn impossible-btn" data-depth="7" id="difficultyImpossible">НЕВОЗМОЖНО</button>
             </div>
             
             <div class="players">
                 <div class="player player-x" id="playerX">
-                    Игрок X
+                    <span class="player-name">Игрок X</span>
                     <div class="score" id="scoreX">0</div>
                 </div>
                 <div class="player player-o" id="playerO">
-                    Игрок O
+                    <span class="player-name">Игрок O</span>
                     <div class="score" id="scoreO">0</div>
                 </div>
             </div>
@@ -561,7 +559,7 @@
         </div>
 
         <div class="instructions">
-            <p>Соберите линию из <span id="currentWinLength">4</span> фигур в одном из 3 направлений гексагональной сетки!</p>
+            <p id="instructionsText">Соберите линию из <span id="currentWinLength">4</span> фигур в одном из 3 направлений гексагональной сетки!</p>
             <p class="difficulty-info" id="difficultyInfo">Текущая сложность: Средний (5x5, линия из 4)</p>
         </div>
     </div>
@@ -573,6 +571,174 @@ const i18n = {
     currentLanguage: 'ru',
     ready: false,
     
+    // Встроенные переводы для локальной разработки (fallback)
+    builtInTranslations: {
+        ru: {
+            game: {
+                title: "Гексагональные Крестики-Нолики",
+                instructions: "Соберите линию из {length} фигур в одном из 3 направлений гексагональной сетки!",
+                difficulty: "Текущая сложность: {difficulty} ({size}x{size}, линия из {length})"
+            },
+            settings: {
+                boardSize: "Размер поля:",
+                winLength: "Длина линии:",
+                apply: "Применить настройки",
+                boardSize4: "4x4",
+                boardSize5: "5x5",
+                boardSize6: "6x6",
+                boardSize7: "7x7",
+                winLength3: "3 в ряд",
+                winLength4: "4 в ряд",
+                winLength5: "5 в ряд"
+            },
+            modes: {
+                pvp: "👥 Игрок / Игрок",
+                pve: "🤖 Игрок / Бот",
+                online: "🌐 Онлайн игра"
+            },
+            players: {
+                playerX: "Игрок X",
+                playerO: "Игрок O",
+                botO: "Бот O",
+                bot: "Бот"
+            },
+            buttons: {
+                newGame: "Новая игра",
+                resetScore: "Сбросить счёт",
+                continue: "Продолжить",
+                createRoom: "Создать комнату",
+                startGame: "Начать игру",
+                join: "Присоединиться",
+                sync: "🔄 Синхронизация",
+                or: "или"
+            },
+            online: {
+                title: "Онлайн игра",
+                roomIdPlaceholder: "ID комнаты",
+                roomCreated: "Комната создана! ID: {id}",
+                waitingConnection: "Ожидаем подключения...",
+                playerConnected: "Игрок подключен! Начинаем игру...",
+                connecting: "Подключаемся к комнате...",
+                connected: "Подключено!",
+                disconnected: "Соединение разорвано",
+                error: "Ошибка подключения",
+                roomIdLabel: "ID комнаты:",
+                opponentsLoaded: "Загружено соперников: {count}",
+                opponents: "Соперники:",
+                noOpponents: "Соперники не найдены. Ваша игра будет сохранена для других игроков.",
+                opponentFinished: "Соперник завершил игру",
+                sessionSaved: "Сессия сохранена",
+                autoSync: "Синхронизация происходит автоматически",
+                description: "Играйте против записанных сессий других игроков",
+                sdkNotInitialized: "SDK не инициализирован"
+            },
+            messages: {
+                win: "{winner} победил! 🎉",
+                draw: "Ничья! 🤝",
+                thinking: "думает...",
+                winLine: "Выигрышная линия: {line}",
+                errorLineLength: "Длина линии не может быть больше размера поля! Максимум для поля {size}x{size}: {max} в ряд",
+                enterRoomId: "Введите ID комнаты"
+            },
+            difficulty: {
+                label: "Сложность бота:",
+                easy: "Простой",
+                medium: "Средний",
+                hard: "Сложный",
+                expert: "Эксперт",
+                impossible: "НЕВОЗМОЖНО"
+            },
+            status: {
+                gameStateSent: "Состояние игры отправлено игроку",
+                syncRequestSent: "Запрос синхронизации отправлен",
+                syncError: "Ошибка: нет подключения для синхронизации",
+                gameSynced: "Игра синхронизирована"
+            }
+        },
+        en: {
+            game: {
+                title: "Hexagonal Tic-Tac-Toe",
+                instructions: "Collect a line of {length} pieces in one of 3 directions of the hexagonal grid!",
+                difficulty: "Current difficulty: {difficulty} ({size}x{size}, line of {length})"
+            },
+            settings: {
+                boardSize: "Board size:",
+                winLength: "Line length:",
+                apply: "Apply settings",
+                boardSize4: "4x4",
+                boardSize5: "5x5",
+                boardSize6: "6x6",
+                boardSize7: "7x7",
+                winLength3: "3 in a row",
+                winLength4: "4 in a row",
+                winLength5: "5 in a row"
+            },
+            modes: {
+                pvp: "👥 Player / Player",
+                pve: "🤖 Player / Bot",
+                online: "🌐 Online game"
+            },
+            players: {
+                playerX: "Player X",
+                playerO: "Player O",
+                botO: "Bot O",
+                bot: "Bot"
+            },
+            buttons: {
+                newGame: "New game",
+                resetScore: "Reset score",
+                continue: "Continue",
+                createRoom: "Create room",
+                startGame: "Start game",
+                join: "Join",
+                sync: "🔄 Sync",
+                or: "or"
+            },
+            online: {
+                title: "Online game",
+                roomIdPlaceholder: "Room ID",
+                roomCreated: "Room created! ID: {id}",
+                waitingConnection: "Waiting for connection...",
+                playerConnected: "Player connected! Starting game...",
+                connecting: "Connecting to room...",
+                connected: "Connected!",
+                disconnected: "Connection lost",
+                error: "Connection error",
+                roomIdLabel: "Room ID:",
+                opponentsLoaded: "Opponents loaded: {count}",
+                opponents: "Opponents:",
+                noOpponents: "No opponents found. Your game will be saved for other players.",
+                opponentFinished: "Opponent finished the game",
+                sessionSaved: "Session saved",
+                autoSync: "Synchronization happens automatically",
+                description: "Play against recorded sessions of other players",
+                sdkNotInitialized: "SDK not initialized"
+            },
+            messages: {
+                win: "{winner} won! 🎉",
+                draw: "Draw! 🤝",
+                thinking: "thinking...",
+                winLine: "Winning line: {line}",
+                errorLineLength: "Line length cannot be greater than board size! Maximum for {size}x{size} board: {max} in a row",
+                enterRoomId: "Enter room ID"
+            },
+            difficulty: {
+                label: "Bot difficulty:",
+                easy: "Easy",
+                medium: "Medium",
+                hard: "Hard",
+                expert: "Expert",
+                impossible: "IMPOSSIBLE"
+            },
+            status: {
+                gameStateSent: "Game state sent to player",
+                syncRequestSent: "Sync request sent",
+                syncError: "Error: no connection for sync",
+                gameSynced: "Game synced"
+            }
+        }
+    },
+    
     // Загрузка переводов из JSON файлов
     async loadTranslations(lang) {
         try {
@@ -582,7 +748,12 @@ const i18n = {
                 return true;
             }
         } catch (error) {
-            console.error(`Failed to load ${lang}.json:`, error);
+            console.warn(`Failed to load ${lang}.json from file, using built-in translations.`, error);
+            // Используем встроенные переводы если не удалось загрузить из файла
+            if (this.builtInTranslations[lang]) {
+                this.translations[lang] = this.builtInTranslations[lang];
+                return true;
+            }
         }
         return false;
     },
@@ -604,10 +775,18 @@ const i18n = {
         this.currentLanguage = lang;
         
         // Загружаем переводы для текущего языка и русского (как fallback)
-        await Promise.all([
+        const [currentLoaded, ruLoaded] = await Promise.all([
             this.loadTranslations(lang),
             lang !== 'ru' ? this.loadTranslations('ru') : Promise.resolve(true)
         ]);
+        
+        // Если не удалось загрузить, используем встроенные переводы
+        if (!currentLoaded && this.builtInTranslations[lang]) {
+            this.translations[lang] = this.builtInTranslations[lang];
+        }
+        if (!ruLoaded && this.builtInTranslations.ru) {
+            this.translations.ru = this.builtInTranslations.ru;
+        }
         
         // Обновляем атрибут lang в HTML
         document.documentElement.lang = this.currentLanguage;
@@ -661,13 +840,20 @@ const i18n = {
         document.title = this.key('game.title');
         
         // Настройки
-        const boardSizeLabel = document.querySelector('label[for="boardSizeSelect"]');
-        if (boardSizeLabel) boardSizeLabel.textContent = this.key('settings.boardSize');
-        
-        const winLengthLabel = document.querySelector('label[for="winLengthSelect"]');
-        if (winLengthLabel) winLengthLabel.textContent = this.key('settings.winLength');
-        
+        this.gui('boardSizeLabel', 'settings.boardSize');
+        this.gui('winLengthLabel', 'settings.winLength');
         this.gui('applySettings', 'settings.apply');
+        
+        // Опции select для размера поля
+        this.gui('boardSize4', 'settings.boardSize4');
+        this.gui('boardSize5', 'settings.boardSize5');
+        this.gui('boardSize6', 'settings.boardSize6');
+        this.gui('boardSize7', 'settings.boardSize7');
+        
+        // Опции select для длины линии
+        this.gui('winLength3', 'settings.winLength3');
+        this.gui('winLength4', 'settings.winLength4');
+        this.gui('winLength5', 'settings.winLength5');
         
         // Режимы игры
         this.gui('modePvP', 'modes.pvp');
@@ -679,12 +865,63 @@ const i18n = {
         this.gui('resetBtn', 'buttons.resetScore');
         this.gui('continueBtn', 'buttons.continue');
         
-        // Онлайн
-        const onlineTitle = document.querySelector('#onlineLobby h3');
-        if (onlineTitle) onlineTitle.textContent = this.key('online.title');
+        // Сложность бота
+        this.gui('botDifficultyLabel', 'difficulty.label');
+        this.gui('difficultyMedium', 'difficulty.medium');
+        this.gui('difficultyHard', 'difficulty.hard');
+        this.gui('difficultyImpossible', 'difficulty.impossible');
         
-        const roomIdInput = document.getElementById('roomIdInput');
-        if (roomIdInput) roomIdInput.placeholder = this.key('online.roomIdPlaceholder');
+        // Игроки
+        const playerXName = document.querySelector('#playerX .player-name');
+        if (playerXName) playerXName.textContent = this.key('players.playerX');
+        
+        const playerOName = document.querySelector('#playerO .player-name');
+        if (playerOName) playerOName.textContent = this.key('players.playerO');
+        
+        // Инструкции
+        const instructionsText = document.getElementById('instructionsText');
+        if (instructionsText) {
+            const lengthElement = document.getElementById('currentWinLength');
+            const length = lengthElement ? lengthElement.textContent : '4';
+            instructionsText.textContent = this.key('game.instructions', { length });
+        }
+        
+        // Информация о сложности (если игра уже инициализирована)
+        if (window.gameInstance) {
+            const game = window.gameInstance;
+            const sizeNames = {
+                '4': this.key('difficulty.easy'),
+                '5': this.key('difficulty.medium'),
+                '6': this.key('difficulty.hard'),
+                '7': this.key('difficulty.expert')
+            };
+            const difficultyInfo = document.getElementById('difficultyInfo');
+            if (difficultyInfo && game.boardSize && game.winLength) {
+                difficultyInfo.textContent = this.key('game.difficulty', {
+                    difficulty: sizeNames[game.boardSize] || this.key('difficulty.medium'),
+                    size: game.boardSize,
+                    length: game.winLength
+                });
+            }
+        }
+        
+        // Онлайн
+        this.gui('onlineTitle', 'online.title');
+        this.gui('startOnlineBtn', 'buttons.startGame');
+        const onlineDesc = document.getElementById('onlineDescription');
+        if (onlineDesc) onlineDesc.textContent = this.key('online.description');
+        
+        // Обновляем кнопку переключения языка
+        const langToggle = document.getElementById('langToggle');
+        if (langToggle) {
+            if (this.currentLanguage === 'en') {
+                langToggle.textContent = '🇷🇺 RU';
+                langToggle.title = 'Switch to Russian';
+            } else {
+                langToggle.textContent = '🇬🇧 EN';
+                langToggle.title = 'Switch to English';
+            }
+        }
         
         // Обновляем динамические элементы через игру
         if (window.gameInstance) {
@@ -698,14 +935,69 @@ const i18n = {
         
         // Загружаем переводы для нового языка, если еще не загружены
         if (!this.translations[lang]) {
-            await this.loadTranslations(lang);
+            const loaded = await this.loadTranslations(lang);
+            // Если не удалось загрузить, используем встроенные переводы
+            if (!loaded && this.builtInTranslations[lang]) {
+                this.translations[lang] = this.builtInTranslations[lang];
+            }
         }
         
         this.currentLanguage = lang;
         document.documentElement.lang = this.currentLanguage;
         this.localize();
+        
+        // Обновляем кнопку переключения языка
+        const langToggle = document.getElementById('langToggle');
+        if (langToggle) {
+            if (lang === 'en') {
+                langToggle.textContent = '🇷🇺 RU';
+                langToggle.title = 'Switch to Russian';
+            } else {
+                langToggle.textContent = '🇬🇧 EN';
+                langToggle.title = 'Switch to English';
+            }
+        }
+        
+        // Обновляем динамические элементы через игру
+        if (window.gameInstance) {
+            window.gameInstance.updateLocalization();
+            // Также обновляем инструкции и информацию о сложности после смены языка
+            const game = window.gameInstance;
+            const lengthElement = document.getElementById('currentWinLength');
+            if (lengthElement) {
+                const length = lengthElement.textContent;
+                const instructionsText = document.getElementById('instructionsText');
+                if (instructionsText) {
+                    instructionsText.textContent = this.key('game.instructions', { length });
+                }
+            }
+            // Обновляем информацию о сложности
+            if (game.boardSize && game.winLength) {
+                const sizeNames = {
+                    '4': this.key('difficulty.easy'),
+                    '5': this.key('difficulty.medium'),
+                    '6': this.key('difficulty.hard'),
+                    '7': this.key('difficulty.expert')
+                };
+                const difficultyInfo = document.getElementById('difficultyInfo');
+                if (difficultyInfo) {
+                    difficultyInfo.textContent = this.key('game.difficulty', {
+                        difficulty: sizeNames[game.boardSize] || this.key('difficulty.medium'),
+                        size: game.boardSize,
+                        length: game.winLength
+                    });
+                }
+            }
+        }
     }
 };
+
+// Функция переключения языка
+function toggleLanguage() {
+    const currentLang = i18n.currentLanguage;
+    const newLang = currentLang === 'ru' ? 'en' : 'ru';
+    i18n.setLanguage(newLang);
+}
 
 // Глобальные функции для кнопок HTML
 function createOnlineGame() {
@@ -740,14 +1032,12 @@ class HexagonalTicTacToe {
         this.winningLine = null;
         this.transpositionTable = new Map();
         
-        // Онлайн-переменные
-        this.peer = null;
-        this.connection = null;
+        // Онлайн-переменные (асинхронный мультиплеер)
         this.isOnline = false;
-        this.isHost = false;
-        this.roomId = null;
-        this.waitingForConnection = false;
-        this.autoSyncInterval = null;
+        this.opponents = [];
+        this.currentOpponentIndex = 0;
+        this.gameStartTime = null;
+        this.multiplayerInitialized = false;
         
         // Переменные для touch-событий
         this.lastTouchX = undefined;
@@ -936,12 +1226,13 @@ class HexagonalTicTacToe {
         onlineBtn.classList.toggle('active', this.gameMode === 'online');
         botDifficulty.style.display = this.gameMode === 'pve' ? 'block' : 'none';
         
+        const playerOName = document.querySelector('#playerO .player-name');
         if (this.gameMode === 'pve') {
             playerO.classList.add('player-bot');
-            playerO.querySelector('div:first-child').textContent = i18n.key('players.botO');
+            if (playerOName) playerOName.textContent = i18n.key('players.bot');
         } else {
             playerO.classList.remove('player-bot');
-            playerO.querySelector('div:first-child').textContent = i18n.key('players.playerO');
+            if (playerOName) playerOName.textContent = i18n.key('players.playerO');
         }
     }
     
@@ -959,10 +1250,7 @@ class HexagonalTicTacToe {
         
         this.updateDifficultyInfo();
         
-        if (this.isOnline && this.isHost) {
-            this.sendData({ type: 'reset' });
-        }
-        
+        // В асинхронном мультиплеере не нужно отправлять reset
         this.initializeGame();
     }
     
@@ -981,9 +1269,9 @@ class HexagonalTicTacToe {
         });
         
         // Обновляем инструкции
-        const instructions = document.querySelector('.instructions p');
-        if (instructions) {
-            instructions.textContent = i18n.key('game.instructions', { length: this.winLength });
+        const instructionsText = document.getElementById('instructionsText');
+        if (instructionsText) {
+            instructionsText.textContent = i18n.key('game.instructions', { length: this.winLength });
         }
     }
     
@@ -991,11 +1279,10 @@ class HexagonalTicTacToe {
     handleClick(event) {
         if (this.gameOver || this.botThinking) return;
         
-        // В онлайн-режиме проверяем, чей ход
+        // В онлайн-режиме игрок всегда X, соперники - O (из записанных сессий)
         if (this.isOnline) {
-            if ((this.isHost && this.currentPlayer !== 'X') || 
-                (!this.isHost && this.currentPlayer !== 'O')) {
-                return;
+            if (this.currentPlayer !== 'X') {
+                return; // Ход соперника обрабатывается через события
             }
         } 
         // В режиме PvE блокируем клики, когда ходит бот
@@ -1080,7 +1367,7 @@ class HexagonalTicTacToe {
     }
     
     makeOnlineMove(row, col) {
-        // Локальное обновление
+        // Делаем ход
         this.board[row][col] = this.currentPlayer;
         
         const winResult = this.checkWin();
@@ -1100,20 +1387,18 @@ class HexagonalTicTacToe {
             this.handleDraw();
         }
         
-        // Отправка хода другому игроку
-        const moveData = {
-            type: 'move',
-            row: row,
-            col: col,
-            player: this.currentPlayer,
-            nextPlayer: this.currentPlayer === 'X' ? 'O' : 'X',
-            gameOver: gameOver,
-            winner: winner,
-            winningLine: winningLine,
-            scores: {...this.scores}
-        };
-        
-        this.sendData(moveData);
+        // Записываем ход в сессию через commit()
+        if (window.ysdk && window.ysdk.multiplayer && window.ysdk.multiplayer.sessions) {
+            const moveData = {
+                row: row,
+                col: col,
+                player: this.currentPlayer,
+                gameOver: gameOver,
+                winner: winner,
+                winningLine: winningLine
+            };
+            window.ysdk.multiplayer.sessions.commit(moveData);
+        }
         
         if (!gameOver) {
             this.currentPlayer = this.currentPlayer === 'X' ? 'O' : 'X';
@@ -1122,6 +1407,33 @@ class HexagonalTicTacToe {
         this.drawBoard();
         this.updatePlayerDisplay();
         this.updateScores();
+        
+        // Если игра завершена, сохраняем сессию
+        if (gameOver) {
+            this.saveGameSession();
+        }
+    }
+    
+    // Сохранение игровой сессии на сервере
+    saveGameSession() {
+        if (window.ysdk && window.ysdk.multiplayer && window.ysdk.multiplayer.sessions) {
+            // Используем meta-параметры для фильтрации сессий
+            // meta1 - размер поля, meta2 - длина линии для победы, meta3 - счет игрока
+            const meta = {
+                meta1: this.boardSize,
+                meta2: this.winLength,
+                meta3: this.scores.X
+            };
+            
+            window.ysdk.multiplayer.sessions.push(meta)
+                .then(() => {
+                    console.log('Game session saved');
+                    this.updateConnectionStatus(i18n.key('online.sessionSaved'), 'success');
+                })
+                .catch(err => {
+                    console.error('Failed to save session:', err);
+                });
+        }
     }
     
     // КУБИЧЕСКИЕ КООРДИНАТЫ
@@ -1664,6 +1976,11 @@ class HexagonalTicTacToe {
         // Сообщаем об остановке геймплея (игра завершена)
         this.stopGameplay();
         
+        // Сохраняем сессию при завершении игры в онлайн-режиме
+        if (this.isOnline) {
+            this.saveGameSession();
+        }
+        
         this.winMessage.classList.add('show');
     }
     
@@ -1675,15 +1992,18 @@ class HexagonalTicTacToe {
         // Сообщаем об остановке геймплея (игра завершена)
         this.stopGameplay();
         
+        // Сохраняем сессию при завершении игры в онлайн-режиме
+        if (this.isOnline) {
+            this.saveGameSession();
+        }
+        
         this.winMessage.classList.add('show');
     }
     
     resetScores() {
         this.scores = { X: 0, O: 0 };
         this.updateScores();
-        if (this.isOnline && this.isHost) {
-            this.sendData({ type: 'reset' });
-        }
+        // В асинхронном мультиплеере не нужно отправлять reset
         this.initializeGame();
     }
     
@@ -1705,37 +2025,24 @@ class HexagonalTicTacToe {
     // Обновление локализации динамических элементов
     updateLocalization() {
         // Обновляем имена игроков
-        const playerX = document.getElementById('playerX');
-        if (playerX) {
-            playerX.querySelector('div:first-child').textContent = i18n.key('players.playerX');
+        const playerXName = document.querySelector('#playerX .player-name');
+        if (playerXName) {
+            playerXName.textContent = i18n.key('players.playerX');
         }
         
-        const playerO = document.getElementById('playerO');
-        if (playerO && this.gameMode !== 'pve') {
-            playerO.querySelector('div:first-child').textContent = i18n.key('players.playerO');
+        const playerOName = document.querySelector('#playerO .player-name');
+        if (playerOName && this.gameMode !== 'pve') {
+            playerOName.textContent = i18n.key('players.playerO');
+        } else if (playerOName && this.gameMode === 'pve') {
+            playerOName.textContent = i18n.key('players.bot');
         }
         
-        // Обновляем сложность бота
-        const difficultyLabels = document.querySelectorAll('.bot-difficulty .difficulty-btn');
-        if (difficultyLabels.length >= 3) {
-            difficultyLabels[0].textContent = i18n.key('difficulty.medium');
-            difficultyLabels[1].textContent = i18n.key('difficulty.hard');
-            difficultyLabels[2].textContent = i18n.key('difficulty.impossible');
-        }
-        
-        // Обновляем онлайн кнопки
-        const createRoomBtn = document.querySelector('button[onclick="createOnlineGame()"]');
-        if (createRoomBtn) createRoomBtn.textContent = i18n.key('buttons.createRoom');
-        
-        const joinBtn = document.querySelector('button[onclick="joinOnlineGame()"]');
-        if (joinBtn) joinBtn.textContent = i18n.key('buttons.join');
-        
-        const syncBtn = document.querySelector('button[onclick="syncGame()"]');
-        if (syncBtn) syncBtn.textContent = i18n.key('buttons.sync');
-        
-        const orText = document.querySelector('#onlineLobby .online-buttons div');
-        if (orText && (orText.textContent.includes('или') || orText.textContent.includes('or'))) {
-            orText.textContent = i18n.key('buttons.or');
+        // Обновляем инструкции
+        const instructionsText = document.getElementById('instructionsText');
+        if (instructionsText) {
+            const lengthElement = document.getElementById('currentWinLength');
+            const length = lengthElement ? lengthElement.textContent : this.winLength.toString();
+            instructionsText.textContent = i18n.key('game.instructions', { length });
         }
         
         // Обновляем информацию о сложности
@@ -1748,6 +2055,16 @@ class HexagonalTicTacToe {
         
         playerX.classList.toggle('active', this.currentPlayer === 'X' && !this.botThinking);
         playerO.classList.toggle('active', this.currentPlayer === 'O' && !this.botThinking);
+        
+        // Обновляем имя игрока O в зависимости от режима
+        const playerOName = document.querySelector('#playerO .player-name');
+        if (playerOName) {
+            if (this.gameMode === 'pve') {
+                playerOName.textContent = i18n.key('players.bot');
+            } else {
+                playerOName.textContent = i18n.key('players.playerO');
+            }
+        }
         
         let botIndicator = playerO.querySelector('.bot-thinking');
         if (this.botThinking && this.currentPlayer === 'O' && this.gameMode === 'pve') {
@@ -1858,282 +2175,196 @@ class HexagonalTicTacToe {
         this.ctx.stroke();
     }
     
-    // ОНЛАЙН-ФУНКЦИОНАЛЬНОСТЬ
-    createOnlineGame() {
-        this.isOnline = true;
-        this.isHost = true;
-        this.waitingForConnection = true;
-        
-        // Создаем Peer с случайным ID
-        this.peer = new Peer({
-            host: '0.peerjs.com',
-            port: 443,
-            path: '/',
-            pingInterval: 5000
-        });
-        
-        this.peer.on('open', (id) => {
-            this.roomId = id;
-            this.updateConnectionStatus(i18n.key('online.roomCreated', { id }), 'success');
-            document.getElementById('roomInfo').innerHTML = `${i18n.key('online.roomIdLabel')} <strong>${id}</strong><br>${i18n.key('online.waitingConnection')}`;
-            document.getElementById('roomInfo').style.display = 'block';
-        });
-        
-        this.peer.on('connection', (conn) => {
-            this.connection = conn;
-            this.setupConnection();
-            this.waitingForConnection = false;
-            this.updateConnectionStatus(i18n.key('online.playerConnected'), 'success');
-            this.startOnlineGame();
-            this.startAutoSync();
-        });
-        
-        this.peer.on('error', (err) => {
-            console.error('Peer error:', err);
-            this.updateConnectionStatus(i18n.key('online.error') + ': ' + err.type, 'error');
-        });
-    }
-    
-    joinOnlineGame() {
-        const roomId = document.getElementById('roomIdInput').value.trim();
-        if (!roomId) {
-            alert(i18n.key('messages.enterRoomId'));
+    // АСИНХРОННЫЙ МУЛЬТИПЛЕЕР (Яндекс SDK)
+    async createOnlineGame() {
+        if (!window.ysdk || !window.ysdk.multiplayer || !window.ysdk.multiplayer.sessions) {
+            this.updateConnectionStatus(i18n.key('online.sdkNotInitialized'), 'error');
             return;
         }
         
         this.isOnline = true;
-        this.isHost = false;
+        this.gameStartTime = Date.now();
         
-        this.peer = new Peer({
-            host: '0.peerjs.com',
-            port: 443,
-            path: '/',
-            pingInterval: 5000
-        });
-        
-        this.peer.on('open', (id) => {
-            this.roomId = roomId;
-            this.connection = this.peer.connect(roomId);
-            this.setupConnection();
-            this.updateConnectionStatus(i18n.key('online.connecting'), 'info');
-            this.startAutoSync();
-        });
-        
-        this.peer.on('error', (err) => {
-            console.error('Peer error:', err);
-            this.updateConnectionStatus(i18n.key('online.error') + ': ' + err.type, 'error');
-        });
-    }
-    
-    setupConnection() {
-        this.connection.on('open', () => {
-            this.updateConnectionStatus(i18n.key('online.connected'), 'success');
-            if (!this.isHost) {
-                // Запрос текущего состояния у хоста
-                setTimeout(() => {
-                    this.sendData({ type: 'request_state' });
-                }, 500);
-            }
-        });
-        
-        this.connection.on('data', (data) => {
-            this.handleOnlineData(data);
-        });
-        
-        this.connection.on('close', () => {
-            this.updateConnectionStatus(i18n.key('online.disconnected'), 'error');
-            this.leaveOnlineGame();
-        });
-        
-        this.connection.on('error', (err) => {
-            console.error('Connection error:', err);
-            this.updateConnectionStatus(i18n.key('online.error'), 'error');
-        });
-    }
-    
-    handleOnlineData(data) {
-        console.log("Получены данные:", data.type, data);
-        
-        switch (data.type) {
-            case 'game_state':
-                this.applyGameState(data);
-                break;
-                
-            case 'move':
-                this.applyMove(data);
-                break;
-                
-            case 'reset':
-                this.initializeGame();
-                break;
-                
-            case 'request_state':
-                if (this.isHost) {
-                    this.sendGameState();
+        try {
+            // Инициализируем асинхронный мультиплеер
+            this.opponents = await window.ysdk.multiplayer.sessions.init({
+                count: 3, // Загружаем до 3 сессий соперников
+                isEventBased: true, // Работа через события
+                maxOpponentTurnTime: 1000, // Максимальное время хода соперника (мс)
+                meta: {
+                    meta1: { min: this.boardSize - 1, max: this.boardSize + 1 }, // Размер поля
+                    meta2: { min: this.winLength - 1, max: this.winLength + 1 }   // Длина линии
                 }
-                break;
-
-            case 'sync_response':
-                this.applyGameState(data);
-                break;
-        }
-    }
-
-    // ПРИМЕНЕНИЕ СОСТОЯНИЯ ИГРЫ
-    applyGameState(data) {
-        this.board = data.board.map(row => [...row]);
-        this.currentPlayer = data.currentPlayer;
-        this.scores = {...data.scores};
-        this.gameOver = data.gameOver;
-        
-        if (data.winningLine) {
-            this.winningLine = data.winningLine;
-        } else {
-            this.winningLine = null;
-        }
-        
-        this.drawBoard();
-        this.updatePlayerDisplay();
-        this.updateScores();
-        
-        if (this.gameOver && this.winningLine) {
-            // Игра завершена - останавливаем геймплей
-            this.stopGameplay();
-            this.winMessage.classList.add('show');
-        } else {
-            // Игра активна - запускаем геймплей
-            this.startGameplay();
-            this.winMessage.classList.remove('show');
-        }
-        
-        console.log("Состояние игры синхронизировано");
-        this.updateConnectionStatus(i18n.key('status.gameSynced'), "success");
-    }
-
-    // ПРИМЕНЕНИЕ ХОДА
-    applyMove(data) {
-        this.board[data.row][data.col] = data.player;
-        this.currentPlayer = data.nextPlayer;
-        this.gameOver = data.gameOver;
-        
-        if (data.winner) {
-            this.winningLine = data.winningLine;
-            this.scores[data.winner]++;
-            this.handleWin();
-        } else if (data.gameOver) {
-            this.handleDraw();
-        } else {
-            // Игра продолжается - запускаем геймплей
-            this.startGameplay();
-        }
-        
-        this.drawBoard();
-        this.updatePlayerDisplay();
-        this.updateScores();
-    }
-    
-    sendData(data) {
-        if (this.connection && this.connection.open) {
-            console.log("Отправка данных:", data.type, data);
-            this.connection.send(data);
-            return true;
-        } else {
-            console.warn("Соединение не открыто, данные не отправлены");
-            this.updateConnectionStatus(i18n.key('status.syncError'), "error");
-            return false;
+            });
+            
+            this.multiplayerInitialized = true;
+            this.currentOpponentIndex = 0;
+            
+            // Подписываемся на события
+            this.setupMultiplayerEvents();
+            
+            // Начинаем игру
+            this.startOnlineGame();
+            
+            this.updateConnectionStatus(
+                i18n.key('online.opponentsLoaded', { count: this.opponents.length }), 
+                'success'
+            );
+            
+            // Показываем информацию о соперниках
+            if (this.opponents.length > 0) {
+                const opponentInfo = this.opponents.map((opp, idx) => 
+                    `${idx + 1}. ${opp.player?.name || i18n.key('players.playerX').replace('X', String(idx + 1))}`
+                ).join('<br>');
+                document.getElementById('roomInfo').innerHTML = 
+                    `<strong>${i18n.key('online.opponents') || 'Соперники:'}</strong><br>${opponentInfo}`;
+                document.getElementById('roomInfo').style.display = 'block';
+            } else {
+                document.getElementById('roomInfo').innerHTML = 
+                    i18n.key('online.noOpponents') || 'Соперники не найдены. Ваша игра будет сохранена для других игроков.';
+                document.getElementById('roomInfo').style.display = 'block';
+            }
+            
+        } catch (error) {
+            console.error('Failed to initialize multiplayer:', error);
+            this.updateConnectionStatus(i18n.key('online.error') + ': ' + error.message, 'error');
+            this.isOnline = false;
         }
     }
     
-    sendGameState() {
-        const gameState = {
-            type: 'game_state',
-            board: this.board.map(row => [...row]),
-            currentPlayer: this.currentPlayer,
-            scores: {...this.scores},
-            gameOver: this.gameOver,
-            winningLine: this.winningLine
-        };
+    // Настройка событий асинхронного мультиплеера
+    setupMultiplayerEvents() {
+        if (!window.ysdk) return;
         
-        this.sendData(gameState);
-        console.log("Состояние игры отправлено");
+        // Обработка транзакций (ходов) соперников
+        window.ysdk.on('multiplayer-sessions-transaction', ({ opponentId, transactions }) => {
+            console.log('Opponent move:', opponentId, transactions);
+            
+            // Обрабатываем все транзакции соперника
+            transactions.forEach(transaction => {
+                const payload = transaction.payload;
+                if (payload && payload.row !== undefined && payload.col !== undefined) {
+                    // Применяем ход соперника
+                    this.applyOpponentMove(payload);
+                }
+            });
+        });
+        
+        // Обработка завершения игры соперника
+        window.ysdk.on('multiplayer-sessions-finish', (opponentId) => {
+            console.log('Opponent finished:', opponentId);
+            this.updateConnectionStatus(
+                i18n.key('online.opponentFinished') || `Соперник ${opponentId} завершил игру`, 
+                'info'
+            );
+        });
+    }
+    
+    // Применение хода соперника
+    applyOpponentMove(payload) {
+        if (this.gameOver) return;
+        
+        const { row, col, player, gameOver, winner, winningLine } = payload;
+        
+        // Проверяем, что клетка свободна
+        if (this.board[row] && this.board[row][col] === '') {
+            this.board[row][col] = player || 'O';
+            
+            // Если в payload есть информация о завершении игры
+            if (gameOver) {
+                this.gameOver = true;
+                if (winningLine) {
+                    this.winningLine = winningLine;
+                }
+                if (winner) {
+                    this.scores[winner]++;
+                    this.handleWin();
+                } else {
+                    this.handleDraw();
+                }
+            } else {
+                // Проверяем победу локально
+                const winResult = this.checkWin();
+                if (winResult) {
+                    this.winningLine = winResult;
+                    this.gameOver = true;
+                    // Соперник выиграл
+                    this.scores['O']++;
+                    this.handleWin();
+                } else if (this.isBoardFull()) {
+                    this.gameOver = true;
+                    this.handleDraw();
+                } else {
+                    // Переключаем на ход игрока
+                    this.currentPlayer = 'X';
+                }
+            }
+            
+            this.drawBoard();
+            this.updatePlayerDisplay();
+            this.updateScores();
+        }
     }
     
     startOnlineGame() {
         this.initializeGame();
-        if (this.isHost) {
-            this.currentPlayer = 'X';
-        } else {
-            this.currentPlayer = 'O';
-            // Автоматически запрашиваем состояние при подключении
-            setTimeout(() => {
-                this.sendData({ type: 'request_state' });
-            }, 1000);
-        }
+        // В онлайн-режиме игрок всегда X
+        this.currentPlayer = 'X';
         this.updatePlayerDisplay();
         
-        // Автоматическая отправка состояния, если хост
-        if (this.isHost) {
-            setTimeout(() => {
-                this.sendGameState();
-            }, 500);
-        }
-    }
-
-    // АВТОМАТИЧЕСКАЯ СИНХРОНИЗАЦИЯ КАЖДЫЕ 30 СЕКУНД
-    startAutoSync() {
-        if (this.autoSyncInterval) {
-            clearInterval(this.autoSyncInterval);
-        }
-        
-        this.autoSyncInterval = setInterval(() => {
-            if (this.isOnline && this.connection && this.connection.open) {
-                if (this.isHost) {
-                    this.sendGameState();
-                } else {
-                    this.sendData({ type: 'request_state' });
-                }
-                console.log("Автосинхронизация выполнена");
-            }
-        }, 30000); // Синхронизация каждые 30 секунд
+        // Запускаем геймплей для начала записи сессии
+        this.startGameplay();
     }
     
     updateConnectionStatus(message, type) {
         const statusElement = document.getElementById('connectionStatus');
-        statusElement.textContent = message;
-        statusElement.style.display = 'block';
-        statusElement.style.background = type === 'success' ? '#d4edda' : 
-                                       type === 'error' ? '#f8d7da' : '#d1ecf1';
-        statusElement.style.color = type === 'success' ? '#155724' : 
-                                   type === 'error' ? '#721c24' : '#0c5460';
+        if (statusElement) {
+            statusElement.textContent = message;
+            statusElement.style.display = 'block';
+            statusElement.style.background = type === 'success' ? '#d4edda' : 
+                                           type === 'error' ? '#f8d7da' : '#d1ecf1';
+            statusElement.style.color = type === 'success' ? '#155724' : 
+                                       type === 'error' ? '#721c24' : '#0c5460';
+        }
     }
     
     leaveOnlineGame() {
-        if (this.autoSyncInterval) {
-            clearInterval(this.autoSyncInterval);
+        // Отписываемся от событий
+        if (window.ysdk) {
+            window.ysdk.off('multiplayer-sessions-transaction');
+            window.ysdk.off('multiplayer-sessions-finish');
         }
-        if (this.connection) {
-            this.connection.close();
-        }
-        if (this.peer) {
-            this.peer.destroy();
-        }
+        
         this.isOnline = false;
+        this.multiplayerInitialized = false;
+        this.opponents = [];
+        this.currentOpponentIndex = 0;
+        this.gameStartTime = null;
+        
+        // Останавливаем геймплей
+        this.stopGameplay();
+        
         this.initializeGame();
-    }
-
-    // СИНХРОНИЗАЦИЯ ВРУЧНУЮ
-    syncGame() {
-        if (this.isOnline && this.connection && this.connection.open) {
-            if (this.isHost) {
-                this.sendGameState();
-                this.updateConnectionStatus(i18n.key('status.gameStateSent'), "success");
-            } else {
-                this.sendData({ type: 'request_state' });
-                this.updateConnectionStatus(i18n.key('status.syncRequestSent'), "success");
-            }
-        } else {
-            this.updateConnectionStatus(i18n.key('status.syncError'), "error");
+        
+        // Скрываем информацию о соперниках
+        const roomInfo = document.getElementById('roomInfo');
+        if (roomInfo) {
+            roomInfo.style.display = 'none';
         }
+    }
+    
+    // Удаляем старую функцию joinOnlineGame, так как в асинхронном мультиплеере она не нужна
+    joinOnlineGame() {
+        // В асинхронном мультиплеере нет понятия "присоединения" - просто создаем игру
+        this.createOnlineGame();
+    }
+    
+    // Удаляем syncGame, так как синхронизация происходит автоматически через события
+    syncGame() {
+        this.updateConnectionStatus(
+            i18n.key('online.autoSync') || 'Синхронизация происходит автоматически', 
+            'info'
+        );
     }
 }
 

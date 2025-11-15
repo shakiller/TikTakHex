@@ -7,7 +7,14 @@
   "settings": {
     "boardSize": "Board size:",
     "winLength": "Line length:",
-    "apply": "Apply settings"
+    "apply": "Apply settings",
+    "boardSize4": "4x4",
+    "boardSize5": "5x5",
+    "boardSize6": "6x6",
+    "boardSize7": "7x7",
+    "winLength3": "3 in a row",
+    "winLength4": "4 in a row",
+    "winLength5": "5 in a row"
   },
   "modes": {
     "pvp": "👥 Player / Player",
@@ -25,6 +32,7 @@
     "resetScore": "Reset score",
     "continue": "Continue",
     "createRoom": "Create room",
+    "startGame": "Start game",
     "join": "Join",
     "sync": "🔄 Sync",
     "or": "or"
@@ -39,7 +47,15 @@
     "connected": "Connected!",
     "disconnected": "Connection lost",
     "error": "Connection error",
-    "roomIdLabel": "Room ID:"
+    "roomIdLabel": "Room ID:",
+    "opponentsLoaded": "Opponents loaded: {count}",
+    "opponents": "Opponents:",
+    "noOpponents": "No opponents found. Your game will be saved for other players.",
+    "opponentFinished": "Opponent finished the game",
+    "sessionSaved": "Session saved",
+    "autoSync": "Synchronization happens automatically",
+    "description": "Play against recorded sessions of other players",
+    "sdkNotInitialized": "SDK not initialized"
   },
   "messages": {
     "win": "{winner} won! 🎉",
@@ -50,6 +66,7 @@
     "enterRoomId": "Enter room ID"
   },
   "difficulty": {
+    "label": "Bot difficulty:",
     "easy": "Easy",
     "medium": "Medium",
     "hard": "Hard",
