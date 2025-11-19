@@ -312,6 +312,132 @@
             background: #cc0000;
             box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
         }
+        
+        /* Окно состояния бота */
+        .bot-status-window {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            font-size: 0.9em;
+            min-width: 250px;
+            max-width: 350px;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            display: none;
+            border: 2px solid #ffc107;
+        }
+        
+        .bot-status-window.show {
+            display: block;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        .bot-status-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #ffc107;
+            font-size: 1.1em;
+        }
+        
+        .bot-status-text {
+            line-height: 1.6;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+        
+        .bot-status-ready {
+            font-size: 0.85em;
+            color: #ccc;
+            line-height: 1.4;
+            margin-top: 5px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .bot-status-stage {
+            margin: 5px 0;
+            padding: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+        }
+        
+        .bot-status-stage.active {
+            background: rgba(255, 193, 7, 0.3);
+            font-weight: bold;
+        }
+        
+        /* Индикатор PeerJS серверов - компактный вариант */
+        .peerjs-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            margin-left: 10px;
+            padding: 5px 8px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 5px;
+            font-size: 0.7em;
+            vertical-align: middle;
+        }
+        
+        .peerjs-indicator-title {
+            font-weight: bold;
+            color: #333;
+            margin-right: 3px;
+        }
+        
+        .peerjs-servers-container {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
+        
+        .peerjs-server {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+        }
+        
+        .peerjs-status {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        
+        .peerjs-status.online {
+            background: #4CAF50;
+            box-shadow: 0 0 3px rgba(76, 175, 80, 0.5);
+        }
+        
+        .peerjs-status.offline {
+            background: #f44336;
+        }
+        
+        .peerjs-status.checking {
+            background: #ff9800;
+            animation: pulse-checking 1s infinite;
+        }
+        
+        @keyframes pulse-checking {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
         .online-buttons {
     text-align: center;
     margin: 15px 0;
@@ -334,6 +460,34 @@
     padding: 10px;
     border-radius: 5px;
     border-left: 4px solid #4CAF50;
+}
+
+.copy-room-id-btn {
+    background: #2196F3;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.85em;
+    margin-left: 8px;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.copy-room-id-btn:hover {
+    background: #1976D2;
+    transform: translateY(-1px);
+}
+
+.copy-room-id-btn:active {
+    transform: translateY(0);
+}
+
+.copy-room-id-btn.copied {
+    background: #4CAF50;
 }
     </style>
 </head>
@@ -369,7 +523,10 @@
     <button class="mode-btn" id="modeOnline">🌐 Онлайн игра</button>
 </div>
 <div id="onlineLobby" style="display: none; background: rgba(255,255,255,0.95); padding: 20px; border-radius: 10px; margin: 15px 0;">
-    <h3>Онлайн игра</h3>
+    <h3>Онлайн игра <span class="peerjs-indicator" id="peerjsIndicator">
+        <span class="peerjs-indicator-title">🌐</span>
+        <span class="peerjs-servers-container" id="peerjsServersList"></span>
+    </span></h3>
     <div class="online-buttons">
         <button onclick="createOnlineGame()" class="control-btn">Создать комнату</button>
         <div style="margin: 10px 0; text-align: center">или</div>
@@ -422,6 +579,13 @@
             <p class="difficulty-info" id="difficultyInfo">Текущая сложность: Средний (5x5, линия из 4)</p>
         </div>
     </div>
+    
+    <!-- Окно состояния бота -->
+    <div class="bot-status-window" id="botStatusWindow">
+        <div class="bot-status-title">🤖 Состояние бота</div>
+        <div class="bot-status-text" id="botStatusText">Готов к игре</div>
+        <div class="bot-status-ready" id="botStatusReady" style="display: none;">Готов к игре</div>
+    </div>
 
 <script>
 // Глобальные функции для кнопок HTML
@@ -454,6 +618,11 @@ class HexagonalTicTacToe {
         this.botThinking = false;
         this.winningLine = null;
         this.transpositionTable = new Map();
+        this.botStatus = 'Готов к игре';
+        this.botLastAction = null; // Последнее действие бота
+        this.botStatusWindow = document.getElementById('botStatusWindow');
+        this.botStatusText = document.getElementById('botStatusText');
+        this.botStatusReady = document.getElementById('botStatusReady');
         
         // Онлайн-переменные
         this.peer = null;
@@ -463,9 +632,132 @@ class HexagonalTicTacToe {
         this.roomId = null;
         this.waitingForConnection = false;
         this.autoSyncInterval = null;
+        this.peerJSServers = [];
+        this.peerJSServerStatus = {};
         
         this.initializeGame();
         this.setupEventListeners();
+        this.startPeerJSChecker();
+    }
+    
+    // Обновление состояния бота
+    updateBotStatus(status, isReadyStatus = false) {
+        if (isReadyStatus) {
+            // Это статус готовности - показываем во второй строке
+            if (this.botStatusReady) {
+                this.botStatusReady.textContent = status;
+                this.botStatusReady.style.display = 'block';
+            }
+        } else {
+            // Это активное действие бота - показываем в основной строке
+            this.botLastAction = status;
+            this.botStatus = status;
+            if (this.botStatusText) {
+                this.botStatusText.textContent = status;
+            }
+            // Скрываем статус готовности, пока бот активен
+            if (this.botStatusReady) {
+                this.botStatusReady.style.display = 'none';
+            }
+        }
+        
+        // Окно бота всегда видимо в режиме PvE
+        if (this.gameMode === 'pve') {
+            if (this.botStatusWindow) {
+                this.botStatusWindow.classList.add('show');
+            }
+        } else {
+            if (this.botStatusWindow) {
+                this.botStatusWindow.classList.remove('show');
+            }
+        }
+    }
+    
+    // Проверка доступности серверов PeerJS
+    async checkPeerJSServer(serverHost) {
+        return new Promise((resolve) => {
+            const testPeer = new Peer({
+                host: serverHost,
+                port: 443,
+                path: '/',
+                pingInterval: 3000,
+                config: {
+                    iceServers: []
+                }
+            });
+            
+            const timeout = setTimeout(() => {
+                testPeer.destroy();
+                resolve(false);
+            }, 5000);
+            
+            testPeer.on('open', () => {
+                clearTimeout(timeout);
+                testPeer.destroy();
+                resolve(true);
+            });
+            
+            testPeer.on('error', (err) => {
+                clearTimeout(timeout);
+                testPeer.destroy();
+                resolve(false);
+            });
+        });
+    }
+    
+    // Запуск проверки серверов PeerJS
+    async startPeerJSChecker() {
+        // Проверяем только официальный сервер 0.peerjs.com
+        // Согласно проверке, только он реально существует
+        const servers = [
+            { name: '0', host: '0.peerjs.com' }
+        ];
+        
+        // Сохраняем список серверов
+        this.peerJSServers = servers;
+        this.peerJSServerStatus = {};
+        
+        const serversList = document.getElementById('peerjsServersList');
+        if (!serversList) return;
+        
+        // Создаем элемент для сервера (компактно)
+        servers.forEach(server => {
+            const serverDiv = document.createElement('span');
+            serverDiv.className = 'peerjs-server';
+            serverDiv.id = `peerjs-server-${server.host}`;
+            serverDiv.innerHTML = `
+                <span class="peerjs-status checking" id="peerjs-status-${server.host}" title="${server.host}"></span>
+            `;
+            serversList.appendChild(serverDiv);
+        });
+        
+        // Функция проверки сервера
+        const checkServer = async () => {
+            const server = servers[0];
+            const statusEl = document.getElementById(`peerjs-status-${server.host}`);
+            if (statusEl) {
+                statusEl.className = 'peerjs-status checking';
+            }
+            
+            const isOnline = await this.checkPeerJSServer(server.host);
+            this.peerJSServerStatus[server.host] = isOnline;
+            
+            if (statusEl) {
+                statusEl.className = isOnline ? 'peerjs-status online' : 'peerjs-status offline';
+            }
+        };
+        
+        // Проверяем сразу при загрузке
+        checkServer();
+        
+        // Проверяем каждые 30 секунд
+        setInterval(checkServer, 30000);
+    }
+    
+    // Найти доступный сервер PeerJS
+    findAvailablePeerJSServer() {
+        // Всегда используем единственный официальный сервер 0.peerjs.com
+        return '0.peerjs.com';
     }
     
     initializeGame() {
@@ -476,6 +768,18 @@ class HexagonalTicTacToe {
         this.winningLine = null;
         this.transpositionTable.clear();
         this.winMessage.classList.remove('show');
+        // Показываем последнее действие бота (если есть) или готовность
+        if (this.botLastAction) {
+            if (this.botStatusText) {
+                this.botStatusText.textContent = this.botLastAction;
+            }
+            if (this.botStatusReady) {
+                this.botStatusReady.textContent = 'Готов к игре';
+                this.botStatusReady.style.display = 'block';
+            }
+        } else {
+            this.updateBotStatus('Готов к игре');
+        }
         
         this.updatePlayerDisplay();
         this.updateCanvasSize();
@@ -553,9 +857,15 @@ class HexagonalTicTacToe {
         if (this.gameMode === 'pve') {
             playerO.classList.add('player-bot');
             playerO.querySelector('div:first-child').textContent = 'Бот O';
+            // Показываем окно бота при переключении в режим PvE
+            this.updateBotStatus(this.botStatus || 'Готов к игре');
         } else {
             playerO.classList.remove('player-bot');
             playerO.querySelector('div:first-child').textContent = 'Игрок O';
+            // Скрываем окно бота при выходе из режима PvE
+            if (this.botStatusWindow) {
+                this.botStatusWindow.classList.remove('show');
+            }
         }
     }
     
@@ -809,28 +1119,49 @@ class HexagonalTicTacToe {
     makeBotMove() {
         if (this.gameOver) return;
         
+        this.botThinking = true;
+        this.updateBotStatus('🤖 Бот думает...');
+        this.updatePlayerDisplay();
+        
         console.time('BotThinking');
         let move;
         
         if (this.boardSize <= 6) {
             // Для маленьких досок - полный перебор с оптимизациями
+            this.updateBotStatus('📊 Анализ доски и поиск оптимального хода...');
             move = this.advancedMinimax(this.botDifficulty, -Infinity, Infinity, 'O').move;
         } else {
             // Для больших досок - продвинутая эвристика
+            this.updateBotStatus('🔍 Поиск лучшего хода (эвристический алгоритм)...');
             move = this.findAdvancedMove();
         }
         
         console.timeEnd('BotThinking');
         
         if (move) {
-            this.makeMove(move.row, move.col);
+            this.updateBotStatus(`✅ Ход найден: [${move.row},${move.col}]`);
+            setTimeout(() => {
+                this.makeMove(move.row, move.col);
+                this.botThinking = false;
+                // Показываем готовность во второй строке, не перетирая основное сообщение
+                this.updateBotStatus('Готов к игре', true);
+                this.updatePlayerDisplay();
+            }, 300);
+        } else {
+            this.botThinking = false;
+            // Показываем готовность во второй строке, не перетирая основное сообщение
+            this.updateBotStatus('Готов к игре', true);
+            this.updatePlayerDisplay();
         }
-        this.botThinking = false;
-        this.updatePlayerDisplay();
     }
     
     // ПРОДВИНУТЫЙ МИНИМАКС С ОПТИМИЗАЦИЯМИ
     advancedMinimax(depth, alpha, beta, player) {
+        // Периодически обновляем статус для глубоких поисков
+        if (depth === this.botDifficulty || depth === Math.floor(this.botDifficulty / 2)) {
+            this.updateBotStatus(`⚡ Минимакс поиск (глубина: ${this.botDifficulty - depth}/${this.botDifficulty})...`);
+        }
+        
         const hash = this.getBoardHash();
         const cached = this.transpositionTable.get(hash);
         if (cached && cached.depth >= depth) {
@@ -852,9 +1183,17 @@ class HexagonalTicTacToe {
         let bestScore = player === 'O' ? -Infinity : Infinity;
         let bestMove = null;
         
+        if (depth === this.botDifficulty) {
+            this.updateBotStatus('🎯 Генерация возможных ходов...');
+        }
         const moves = this.getSmartMoves();
         
-        for (const move of moves) {
+        if (depth === this.botDifficulty) {
+            this.updateBotStatus(`🔎 Оценка ${moves.length} возможных ходов...`);
+        }
+        
+        for (let i = 0; i < moves.length; i++) {
+            const move = moves[i];
             this.board[move.row][move.col] = player;
             
             const result = this.advancedMinimax(depth - 1, alpha, beta, player === 'O' ? 'X' : 'O');
@@ -865,6 +1204,9 @@ class HexagonalTicTacToe {
                 if (result.score > bestScore) {
                     bestScore = result.score;
                     bestMove = move;
+                    if (depth === this.botDifficulty) {
+                        this.updateBotStatus(`💡 Лучший ход пока: [${move.row},${move.col}] (оценка: ${Math.round(result.score)})`);
+                    }
                 }
                 alpha = Math.max(alpha, bestScore);
             } else {
@@ -1076,7 +1418,20 @@ class HexagonalTicTacToe {
             }
         }
         
-        return moves.sort((a, b) => b.priority - a.priority);
+        const sortedMoves = moves.sort((a, b) => b.priority - a.priority);
+        
+        // Обновляем статус с информацией о найденных ходах
+        if (this.botThinking) {
+            const winMoves = sortedMoves.filter(m => m.priority >= 10000).length;
+            const blockMoves = sortedMoves.filter(m => m.priority >= 5000 && m.priority < 10000).length;
+            if (winMoves > 0) {
+                this.updateBotStatus(`🎯 Найдено ${winMoves} выигрышных ходов!`);
+            } else if (blockMoves > 0) {
+                this.updateBotStatus(`🛡️ Найдено ${blockMoves} ходов для блокировки игрока`);
+            }
+        }
+        
+        return sortedMoves;
     }
     
     // ХЭШ ДОСКИ ДЛЯ ТРАНСПОЗИЦИОННОЙ ТАБЛИЦЫ
@@ -1092,40 +1447,49 @@ class HexagonalTicTacToe {
     
     // АЛЬТЕРНАТИВНЫЙ АЛГОРИТМ ДЛЯ БОЛЬШИХ ДОСОК
     findAdvancedMove() {
+        this.updateBotStatus('📋 Поиск возможных ходов...');
         const moves = this.getSmartMoves();
         
         // Проверяем выигрыш за 1 ход
+        this.updateBotStatus('🎯 Проверка выигрышных ходов...');
         for (const move of moves) {
             this.board[move.row][move.col] = 'O';
             if (this.checkWin()) {
                 this.board[move.row][move.col] = '';
+                this.updateBotStatus('✅ Найден выигрышный ход!');
                 return move;
             }
             this.board[move.row][move.col] = '';
         }
         
         // Блокируем выигрыш игрока
+        this.updateBotStatus('🛡️ Проверка блокирующих ходов...');
         for (const move of moves.slice(0, 10)) {
             this.board[move.row][move.col] = 'X';
             if (this.checkWin()) {
                 this.board[move.row][move.col] = '';
+                this.updateBotStatus('✅ Найден блокирующий ход!');
                 return move;
             }
             this.board[move.row][move.col] = '';
         }
         
         // Ищем лучший ход по продвинутой эвристике
+        this.updateBotStatus('💡 Оценка позиций по эвристике...');
         let bestScore = -Infinity;
         let bestMove = moves[0];
+        let evaluated = 0;
         
         for (const move of moves.slice(0, 8)) {
             this.board[move.row][move.col] = 'O';
             const score = this.advancedEvaluateBoard();
             this.board[move.row][move.col] = '';
+            evaluated++;
             
             if (score > bestScore) {
                 bestScore = score;
                 bestMove = move;
+                this.updateBotStatus(`📊 Оценено ${evaluated}/8 ходов. Лучший: [${move.row},${move.col}]`);
             }
         }
         
@@ -1284,9 +1648,13 @@ class HexagonalTicTacToe {
         this.isHost = true;
         this.waitingForConnection = true;
         
-        // Создаем Peer с случайным ID
+        // Находим доступный сервер из проверенных (0, 1, 2, 3)
+        // Если проверка еще не завершена, используем 0.peerjs.com по умолчанию
+        const availableServer = this.findAvailablePeerJSServer();
+        this.currentPeerJSServer = availableServer; // Сохраняем используемый сервер
+        
         this.peer = new Peer({
-            host: '0.peerjs.com',
+            host: availableServer,
             port: 443,
             path: '/',
             pingInterval: 5000
@@ -1294,9 +1662,17 @@ class HexagonalTicTacToe {
         
         this.peer.on('open', (id) => {
             this.roomId = id;
-            this.updateConnectionStatus(`Комната создана! ID: ${id}`, 'success');
-            document.getElementById('roomInfo').innerHTML = `ID комнаты: <strong>${id}</strong><br>Ожидаем подключения...`;
-            document.getElementById('roomInfo').style.display = 'block';
+            const serverName = availableServer.replace('.peerjs.com', '');
+            this.updateConnectionStatus(`Комната создана! ID: ${id} (сервер: ${serverName})`, 'success');
+            const roomInfo = document.getElementById('roomInfo');
+            roomInfo.innerHTML = `
+                ID комнаты: <strong id="roomIdDisplay">${id}</strong>
+                <button class="copy-room-id-btn" onclick="copyRoomId('${id}', this)" title="Копировать ID комнаты">
+                    📋 Копировать
+                </button>
+                <br>Сервер: <strong>${availableServer}</strong><br>Ожидаем подключения...
+            `;
+            roomInfo.style.display = 'block';
         });
         
         this.peer.on('connection', (conn) => {
@@ -1324,8 +1700,13 @@ class HexagonalTicTacToe {
         this.isOnline = true;
         this.isHost = false;
         
+        // Находим доступный сервер из проверенных (0, 1, 2, 3)
+        // Если проверка еще не завершена, используем 0.peerjs.com по умолчанию
+        const availableServer = this.findAvailablePeerJSServer();
+        this.currentPeerJSServer = availableServer; // Сохраняем используемый сервер
+        
         this.peer = new Peer({
-            host: '0.peerjs.com',
+            host: availableServer,
             port: 443,
             path: '/',
             pingInterval: 5000
@@ -1333,9 +1714,10 @@ class HexagonalTicTacToe {
         
         this.peer.on('open', (id) => {
             this.roomId = roomId;
+            const serverName = availableServer.replace('.peerjs.com', '');
             this.connection = this.peer.connect(roomId);
             this.setupConnection();
-            this.updateConnectionStatus('Подключаемся к комнате...', 'info');
+            this.updateConnectionStatus(`Подключаемся к комнате ${roomId} (сервер: ${serverName})...`, 'info');
             this.startAutoSync();
         });
         
@@ -1570,6 +1952,59 @@ function syncGame() {
     if (game) {
         game.syncGame();
     }
+}
+
+// Функция копирования ID комнаты в буфер обмена
+function copyRoomId(roomId, buttonElement) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(roomId).then(() => {
+            // Показываем подтверждение
+            if (buttonElement) {
+                const originalText = buttonElement.innerHTML;
+                buttonElement.innerHTML = '✅ Скопировано!';
+                buttonElement.classList.add('copied');
+                setTimeout(() => {
+                    buttonElement.innerHTML = originalText;
+                    buttonElement.classList.remove('copied');
+                }, 2000);
+            }
+        }).catch(err => {
+            console.error('Ошибка копирования:', err);
+            // Fallback для старых браузеров
+            fallbackCopyToClipboard(roomId, buttonElement);
+        });
+    } else {
+        // Fallback для старых браузеров
+        fallbackCopyToClipboard(roomId, buttonElement);
+    }
+}
+
+// Fallback метод копирования для старых браузеров
+function fallbackCopyToClipboard(text, buttonElement) {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    try {
+        document.execCommand('copy');
+        if (buttonElement) {
+            const originalText = buttonElement.innerHTML;
+            buttonElement.innerHTML = '✅ Скопировано!';
+            buttonElement.classList.add('copied');
+            setTimeout(() => {
+                buttonElement.innerHTML = originalText;
+                buttonElement.classList.remove('copied');
+            }, 2000);
+        }
+    } catch (err) {
+        console.error('Ошибка копирования:', err);
+        alert('Не удалось скопировать ID. Скопируйте вручную: ' + text);
+    }
+    document.body.removeChild(textArea);
 }
 
 // Инициализация Яндекс Games SDK и создание экземпляра игры
