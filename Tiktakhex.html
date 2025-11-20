@@ -616,6 +616,8 @@ class HexagonalTicTacToe {
         this.gameOver = false;
         this.scores = { X: 0, O: 0 };
         this.botThinking = false;
+        this.botMoveInProgress = false; // Флаг для предотвращения параллельных вызовов
+        this.botMoveTimeout = null; // Таймаут для защиты от зависания
         this.winningLine = null;
         this.transpositionTable = new Map();
         this.botStatus = 'Готов к игре';
@@ -765,6 +767,11 @@ class HexagonalTicTacToe {
         this.currentPlayer = 'X';
         this.gameOver = false;
         this.botThinking = false;
+        this.botMoveInProgress = false;
+        if (this.botMoveTimeout) {
+            clearTimeout(this.botMoveTimeout);
+            this.botMoveTimeout = null;
+        }
         this.winningLine = null;
         this.transpositionTable.clear();
         this.winMessage.classList.remove('show');
@@ -787,7 +794,10 @@ class HexagonalTicTacToe {
         this.updateDebugInfo();
         
         if (this.gameMode === 'pve' && this.currentPlayer === 'O') {
-            setTimeout(() => this.makeBotMove(), 500);
+            // Проверяем, что бот не уже думает
+            if (!this.botMoveInProgress) {
+                setTimeout(() => this.makeBotMove(), 500);
+            }
         }
     }
     
@@ -830,6 +840,11 @@ class HexagonalTicTacToe {
     }
     
     setGameMode(mode) {
+        // Если переключаемся из онлайн-режима, очищаем онлайн-состояние
+        if (this.isOnline && mode !== 'online') {
+            this.leaveOnlineGame();
+        }
+        
         this.gameMode = mode;
         this.updateGameModeDisplay();
         
@@ -927,9 +942,10 @@ class HexagonalTicTacToe {
                 this.makeMove(hex.row, hex.col);
                 
                 if (this.gameMode === 'pve' && !this.gameOver && this.currentPlayer === 'O') {
-                    this.botThinking = true;
-                    this.updatePlayerDisplay();
-                    setTimeout(() => this.makeBotMove(), 100);
+                    // Проверяем, что бот не уже думает
+                    if (!this.botMoveInProgress) {
+                        setTimeout(() => this.makeBotMove(), 100);
+                    }
                 }
             }
         }
@@ -1117,113 +1133,151 @@ class HexagonalTicTacToe {
     
     // СИЛЬНЫЙ БОТ С ПРОДВИНУТЫМ АЛГОРИТМОМ
     makeBotMove() {
-        if (this.gameOver) return;
+        // Защита от повторного вызова
+        if (this.botMoveInProgress) {
+            console.warn('makeBotMove уже выполняется, пропускаем вызов');
+            return;
+        }
         
+        if (this.gameOver) {
+            this.resetBotState();
+            return;
+        }
+        
+        // Устанавливаем флаги
+        this.botMoveInProgress = true;
         this.botThinking = true;
         this.updateBotStatus('🤖 Бот думает...');
         this.updatePlayerDisplay();
         
-        console.time('BotThinking');
-        let move;
+        // Таймаут для защиты от зависания (15 секунд)
+        this.botMoveTimeout = setTimeout(() => {
+            console.error('Бот завис! Принудительный сброс...');
+            this.updateBotStatus('⚠️ Ошибка: вычисления заняли слишком много времени');
+            this.resetBotState();
+            
+            // Пытаемся сделать случайный ход как fallback
+            this.makeEmergencyMove();
+        }, 15000);
         
-        if (this.boardSize <= 6) {
-            // Для маленьких досок - полный перебор с оптимизациями
-            this.updateBotStatus('📊 Анализ доски и поиск оптимального хода...');
-            move = this.advancedMinimax(this.botDifficulty, -Infinity, Infinity, 'O').move;
-        } else {
-            // Для больших досок - продвинутая эвристика
-            this.updateBotStatus('🔍 Поиск лучшего хода (эвристический алгоритм)...');
-            move = this.findAdvancedMove();
-        }
-        
-        console.timeEnd('BotThinking');
-        
-        if (move) {
-            this.updateBotStatus(`✅ Ход найден: [${move.row},${move.col}]`);
-            setTimeout(() => {
-                this.makeMove(move.row, move.col);
-                this.botThinking = false;
-                // Показываем готовность во второй строке, не перетирая основное сообщение
-                this.updateBotStatus('Готов к игре', true);
-                this.updatePlayerDisplay();
-            }, 300);
-        } else {
-            this.botThinking = false;
-            // Показываем готовность во второй строке, не перетирая основное сообщение
-            this.updateBotStatus('Готов к игре', true);
-            this.updatePlayerDisplay();
+        try {
+            console.time('BotThinking');
+            let move;
+            
+            // Используем requestAnimationFrame для разбиения долгих вычислений
+            requestAnimationFrame(() => {
+                try {
+                    // Ограничиваем сложность для предотвращения зависаний
+                    // Для всех досок используем упрощенный алгоритм, чтобы не блокировать UI
+                    this.updateBotStatus('🔍 Поиск лучшего хода...');
+                    move = this.findAdvancedMove();
+                    
+                    console.timeEnd('BotThinking');
+                    
+                    // Очищаем таймаут
+                    if (this.botMoveTimeout) {
+                        clearTimeout(this.botMoveTimeout);
+                        this.botMoveTimeout = null;
+                    }
+                    
+                    if (move && move.row !== undefined && move.col !== undefined) {
+                        this.updateBotStatus(`✅ Ход найден: [${move.row},${move.col}]`);
+                        setTimeout(() => {
+                            if (!this.gameOver && this.botMoveInProgress) {
+                                this.makeMove(move.row, move.col);
+                            }
+                            this.resetBotState();
+                            this.updateBotStatus('Готов к игре', true);
+                            this.updatePlayerDisplay();
+                        }, 300);
+                    } else {
+                        console.warn('Бот не нашел ход, используем резервный вариант');
+                        // Очищаем таймаут перед вызовом резервного хода
+                        if (this.botMoveTimeout) {
+                            clearTimeout(this.botMoveTimeout);
+                            this.botMoveTimeout = null;
+                        }
+                        this.makeEmergencyMove();
+                    }
+                } catch (error) {
+                    console.error('Ошибка при вычислении хода бота:', error);
+                    this.updateBotStatus('⚠️ Ошибка вычислений, используется резервный ход');
+                    this.makeEmergencyMove();
+                }
+            });
+            
+        } catch (error) {
+            console.error('Критическая ошибка в makeBotMove:', error);
+            if (this.botMoveTimeout) {
+                clearTimeout(this.botMoveTimeout);
+                this.botMoveTimeout = null;
+            }
+            this.makeEmergencyMove();
         }
     }
     
-    // ПРОДВИНУТЫЙ МИНИМАКС С ОПТИМИЗАЦИЯМИ
-    advancedMinimax(depth, alpha, beta, player) {
-        // Периодически обновляем статус для глубоких поисков
-        if (depth === this.botDifficulty || depth === Math.floor(this.botDifficulty / 2)) {
-            this.updateBotStatus(`⚡ Минимакс поиск (глубина: ${this.botDifficulty - depth}/${this.botDifficulty})...`);
+    // Сброс состояния бота
+    resetBotState() {
+        this.botThinking = false;
+        this.botMoveInProgress = false;
+        if (this.botMoveTimeout) {
+            clearTimeout(this.botMoveTimeout);
+            this.botMoveTimeout = null;
+        }
+        this.updatePlayerDisplay();
+    }
+    
+    // Резервный ход при ошибке или зависании
+    makeEmergencyMove() {
+        if (this.gameOver) {
+            this.resetBotState();
+            return;
         }
         
-        const hash = this.getBoardHash();
-        const cached = this.transpositionTable.get(hash);
-        if (cached && cached.depth >= depth) {
-            return cached;
+        // Если уже не в процессе хода бота, не делаем резервный ход
+        if (!this.botMoveInProgress) {
+            this.resetBotState();
+            return;
         }
         
-        // Быстрая проверка терминальных состояний
-        const win = this.checkWin();
-        if (win) {
-            const score = (this.board[win[0].row][win[0].col] === 'O' ? 10000 : -10000) * (depth + 1);
-            return { score, move: null };
-        }
+        console.log('Используется резервный алгоритм для выбора хода');
+        this.updateBotStatus('🔄 Использование резервного алгоритма...');
         
-        if (this.isBoardFull() || depth === 0) {
-            const score = this.advancedEvaluateBoard();
-            return { score, move: null };
-        }
-        
-        let bestScore = player === 'O' ? -Infinity : Infinity;
-        let bestMove = null;
-        
-        if (depth === this.botDifficulty) {
-            this.updateBotStatus('🎯 Генерация возможных ходов...');
-        }
-        const moves = this.getSmartMoves();
-        
-        if (depth === this.botDifficulty) {
-            this.updateBotStatus(`🔎 Оценка ${moves.length} возможных ходов...`);
-        }
-        
-        for (let i = 0; i < moves.length; i++) {
-            const move = moves[i];
-            this.board[move.row][move.col] = player;
+        try {
+            // Простой алгоритм: ищем первую свободную ячейку
+            const moves = this.getSmartMoves();
             
-            const result = this.advancedMinimax(depth - 1, alpha, beta, player === 'O' ? 'X' : 'O');
-            
-            this.board[move.row][move.col] = '';
-            
-            if (player === 'O') {
-                if (result.score > bestScore) {
-                    bestScore = result.score;
-                    bestMove = move;
-                    if (depth === this.botDifficulty) {
-                        this.updateBotStatus(`💡 Лучший ход пока: [${move.row},${move.col}] (оценка: ${Math.round(result.score)})`);
+            if (moves && moves.length > 0) {
+                const move = moves[0];
+                this.updateBotStatus(`✅ Резервный ход: [${move.row},${move.col}]`);
+                setTimeout(() => {
+                    if (!this.gameOver && this.botMoveInProgress) {
+                        this.makeMove(move.row, move.col);
                     }
-                }
-                alpha = Math.max(alpha, bestScore);
+                    this.resetBotState();
+                    this.updateBotStatus('Готов к игре', true);
+                    this.updatePlayerDisplay();
+                }, 300);
             } else {
-                if (result.score < bestScore) {
-                    bestScore = result.score;
-                    bestMove = move;
-                }
-                beta = Math.min(beta, bestScore);
+                // Если даже простой алгоритм не нашел ход, игра должна быть закончена
+                console.error('Не найдено ни одного возможного хода!');
+                this.resetBotState();
+                this.updateBotStatus('❌ Нет возможных ходов', true);
             }
-            
-            if (beta <= alpha) break;
+        } catch (error) {
+            console.error('Ошибка в makeEmergencyMove:', error);
+            this.resetBotState();
+            this.updateBotStatus('❌ Критическая ошибка', true);
         }
-        
-        const result = { score: bestScore, move: bestMove, depth };
-        this.transpositionTable.set(hash, result);
-        
-        return result;
+    }
+    
+    // ПРОДВИНУТЫЙ МИНИМАКС С ОПТИМИЗАЦИЯМИ (отключен для предотвращения зависаний браузера)
+    // Вместо рекурсивного minimax используется findAdvancedMove() - эвристический алгоритм
+    advancedMinimax(depth, alpha, beta, player) {
+        // Эта функция отключена, чтобы предотвратить блокировку UI
+        // Глубокая рекурсия minimax блокирует браузер
+        // Используется только findAdvancedMove() который работает быстро
+        return { score: 0, move: null };
     }
     
     // ПРОДВИНУТАЯ ЭВРИСТИЧЕСКАЯ ОЦЕНКА
@@ -1905,15 +1959,32 @@ class HexagonalTicTacToe {
     leaveOnlineGame() {
         if (this.autoSyncInterval) {
             clearInterval(this.autoSyncInterval);
+            this.autoSyncInterval = null;
         }
         if (this.connection) {
             this.connection.close();
+            this.connection = null;
         }
         if (this.peer) {
             this.peer.destroy();
+            this.peer = null;
         }
         this.isOnline = false;
-        this.initializeGame();
+        this.isHost = false;
+        this.roomId = null;
+        this.waitingForConnection = false;
+        
+        // Очищаем статус подключения
+        const connectionStatus = document.getElementById('connectionStatus');
+        if (connectionStatus) {
+            connectionStatus.style.display = 'none';
+        }
+        const roomInfo = document.getElementById('roomInfo');
+        if (roomInfo) {
+            roomInfo.style.display = 'none';
+        }
+        
+        // Не вызываем initializeGame() здесь, так как он уже будет вызван в setGameMode()
     }
 
     // СИНХРОНИЗАЦИЯ ВРУЧНУЮ
@@ -2030,7 +2101,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
     } else {
         // SDK не найден (локальная разработка), создаем игру без SDK
-        console.warn('Yandex Games SDK not found. Running in local mode.');
         const game = new HexagonalTicTacToe();
         document.querySelector('script')._gameInstance = game;
     }
