@@ -1,0 +1,1342 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hexagonal Tic-Tac-Toe</title>
+    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #e0f2fe 0%, #f3e8ff 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .setup-screen {
+            max-width: 480px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #6b7280;
+            margin-bottom: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        input[type="radio"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        select, input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 1rem;
+            background: white;
+        }
+
+        input[type="text"] {
+            text-align: center;
+            font-size: 1.125rem;
+            letter-spacing: 0.1em;
+            font-family: monospace;
+            text-transform: uppercase;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .btn-primary:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+            margin-top: 8px;
+        }
+
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        .btn-outline {
+            background: white;
+            border: 1px solid #d1d5db;
+            color: #374151;
+        }
+
+        .btn-outline:hover {
+            background: #f9fafb;
+        }
+
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .game-info {
+            text-align: center;
+        }
+
+        .game-info-label {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
+
+        .game-info-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .room-code {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .room-code-text {
+            font-size: 1.25rem;
+            font-family: monospace;
+            font-weight: bold;
+            letter-spacing: 0.1em;
+        }
+
+        .copy-btn {
+            width: auto;
+            padding: 8px;
+            background: transparent;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .copy-btn:hover {
+            background: #f3f4f6;
+        }
+
+        .winner-text {
+            color: #10b981;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-group button {
+            width: auto;
+            padding: 8px 16px;
+        }
+
+        .game-settings {
+            text-align: center;
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .game-board {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 32px;
+            display: flex;
+            justify-content: center;
+        }
+
+        #gameCanvas {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .hex-cell {
+            cursor: pointer;
+            transition: fill 0.2s;
+        }
+
+        .hex-cell:hover:not(.occupied):not(.disabled) {
+            fill: #dbeafe;
+        }
+
+        .hex-cell.winning {
+            fill: #10b981;
+        }
+
+        .hex-cell.occupied {
+            fill: #e0e7ff;
+        }
+
+        .hex-cell.empty {
+            fill: #f3f4f6;
+        }
+
+        .hex-cell.disabled {
+            cursor: not-allowed;
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #1f2937;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .toast.success {
+            background: #10b981;
+        }
+
+        .toast.error {
+            background: #ef4444;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .loader {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.875rem;
+            padding: 8px 12px;
+            border-radius: 6px;
+            background: #f3f4f6;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.online {
+            background: #10b981;
+        }
+
+        .status-dot.offline {
+            background: #ef4444;
+            animation: none;
+        }
+
+        .status-dot.connecting {
+            background: #f59e0b;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .connection-status {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Setup Screen -->
+        <div id="setupScreen" class="card setup-screen">
+            <h1>Hexagonal Tic-Tac-Toe</h1>
+            <p class="subtitle">Настройте игру</p>
+            
+            <div class="form-group">
+                <label>Режим игры</label>
+                <div class="radio-group">
+                    <label class="radio-option">
+                        <input type="radio" name="gameMode" value="pvp" checked>
+                        <span>Player vs Player</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="gameMode" value="bot">
+                        <span>Player vs Bot</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="gameMode" value="online">
+                        <span>Онлайн Мультиплеер (требует сервер)</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-group" id="boardSizeGroup">
+                <label>Размер поля</label>
+                <select id="boardSize">
+                    <option value="5">5 клеток</option>
+                    <option value="6">6 клеток</option>
+                    <option value="7">7 клеток</option>
+                    <option value="8">8 клеток</option>
+                    <option value="9">9 клеток</option>
+                    <option value="10">10 клеток</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="winLengthGroup">
+                <label>Длина линии</label>
+                <select id="winLength">
+                    <option value="3">3 в ряд</option>
+                    <option value="4">4 в ряд</option>
+                    <option value="5">5 в ряд</option>
+                </select>
+            </div>
+
+            <div class="form-group hidden" id="onlineGroup">
+                <label>Действие</label>
+                <div class="btn-group" style="flex-direction: column;">
+                    <button class="btn-primary" onclick="createRoom()">Создать комнату</button>
+                    <button class="btn-secondary" onclick="showJoinRoom()">Присоединиться к комнате</button>
+                </div>
+            </div>
+
+            <div class="form-group hidden" id="joinRoomGroup">
+                <label>Код комнаты</label>
+                <input type="text" id="roomCodeInput" placeholder="Введите код комнаты" maxlength="20">
+                <button class="btn-primary" onclick="joinRoom()" style="margin-top: 8px;">Присоединиться</button>
+                <button class="btn-secondary" onclick="cancelJoinRoom()">Отмена</button>
+            </div>
+
+            <div class="connection-status hidden" id="setupConnectionStatus">
+                <div class="status-indicator">
+                    <span class="status-dot offline" id="setupServerStatusDot"></span>
+                    <span id="setupServerStatusText">Сервер: отключен</span>
+                </div>
+                <div class="status-indicator">
+                    <span class="status-dot offline" id="setupPlayerStatusDot"></span>
+                    <span id="setupPlayerStatusText">Игрок: не подключен</span>
+                </div>
+            </div>
+
+            <button class="btn-primary" id="startGameBtn" onclick="startGame()">Начать Игру</button>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="gameScreen" class="hidden">
+            <div class="card">
+                <div class="game-header">
+                    <div class="game-info">
+                        <div class="game-info-label">Текущий ход</div>
+                        <div class="game-info-value" id="currentPlayer">X</div>
+                        <div id="playerStatus" class="game-info-label"></div>
+                    </div>
+
+                    <div class="game-info" id="roomCodeDisplay" class="hidden">
+                        <div class="game-info-label">Код комнаты</div>
+                        <div class="room-code">
+                            <span class="room-code-text" id="roomCode"></span>
+                            <button class="copy-btn" onclick="copyRoomCode()">📋</button>
+                        </div>
+                    </div>
+
+                    <div class="connection-status hidden" id="connectionStatus">
+                        <div class="status-indicator">
+                            <span class="status-dot offline" id="serverStatusDot"></span>
+                            <span id="serverStatusText">Сервер: отключен</span>
+                        </div>
+                        <div class="status-indicator">
+                            <span class="status-dot offline" id="playerStatusDot"></span>
+                            <span id="playerStatusText">Игрок: не подключен</span>
+                        </div>
+                    </div>
+
+                    <div class="game-info hidden" id="winnerDisplay">
+                        <div class="game-info-label">Победитель!</div>
+                        <div class="winner-text" id="winner"></div>
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn-outline" onclick="resetGame()" id="resetBtn">Сброс</button>
+                        <button class="btn-outline" onclick="backToMenu()">В меню</button>
+                    </div>
+                </div>
+
+                <div class="game-settings" id="gameSettings"></div>
+            </div>
+
+            <div class="game-board">
+                <svg id="gameCanvas"></svg>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game State
+        let gameState = {
+            boardSize: 5,
+            winLength: 3,
+            gameMode: 'pvp',
+            gameStarted: false,
+            currentPlayer: 'X',
+            board: new Map(),
+            winner: null,
+            winningLine: [],
+            isThinking: false,
+            hexSize: 30,
+            gridCoords: [],
+            // Online state
+            peer: null,
+            connection: null,
+            peerId: null,
+            isHost: false,
+            myPlayer: 'X',
+            connected: false,
+            serverConnected: false,
+            playerConnected: false
+        };
+
+        // Update connection status indicators
+        function updateConnectionStatus() {
+            // Update game screen indicators
+            const connectionStatus = document.getElementById('connectionStatus');
+            const serverStatusDot = document.getElementById('serverStatusDot');
+            const serverStatusText = document.getElementById('serverStatusText');
+            const playerStatusDot = document.getElementById('playerStatusDot');
+            const playerStatusText = document.getElementById('playerStatusText');
+
+            // Update setup screen indicators
+            const setupConnectionStatus = document.getElementById('setupConnectionStatus');
+            const setupServerStatusDot = document.getElementById('setupServerStatusDot');
+            const setupServerStatusText = document.getElementById('setupServerStatusText');
+            const setupPlayerStatusDot = document.getElementById('setupPlayerStatusDot');
+            const setupPlayerStatusText = document.getElementById('setupPlayerStatusText');
+
+            if (gameState.gameMode === 'online') {
+                // Show indicators on both screens
+                if (connectionStatus) connectionStatus.classList.remove('hidden');
+                if (setupConnectionStatus) setupConnectionStatus.classList.remove('hidden');
+
+                // Server status
+                let serverStatusClass, serverStatusMsg;
+                if (gameState.serverConnected) {
+                    serverStatusClass = 'status-dot online';
+                    serverStatusMsg = 'Сервер: подключен';
+                } else if (gameState.peer) {
+                    serverStatusClass = 'status-dot connecting';
+                    serverStatusMsg = 'Сервер: подключение...';
+                } else {
+                    serverStatusClass = 'status-dot offline';
+                    serverStatusMsg = 'Сервер: отключен';
+                }
+
+                if (serverStatusDot) {
+                    serverStatusDot.className = serverStatusClass;
+                    serverStatusText.textContent = serverStatusMsg;
+                }
+                if (setupServerStatusDot) {
+                    setupServerStatusDot.className = serverStatusClass;
+                    setupServerStatusText.textContent = serverStatusMsg;
+                }
+
+                // Player connection status
+                let playerStatusClass, playerStatusMsg;
+                if (gameState.playerConnected) {
+                    playerStatusClass = 'status-dot online';
+                    playerStatusMsg = 'Игрок: подключен';
+                } else if (gameState.isHost && gameState.serverConnected) {
+                    playerStatusClass = 'status-dot connecting';
+                    playerStatusMsg = 'Игрок: ожидание...';
+                } else if (!gameState.isHost && gameState.serverConnected) {
+                    playerStatusClass = 'status-dot connecting';
+                    playerStatusMsg = 'Игрок: подключение...';
+                } else {
+                    playerStatusClass = 'status-dot offline';
+                    playerStatusMsg = 'Игрок: не подключен';
+                }
+
+                if (playerStatusDot) {
+                    playerStatusDot.className = playerStatusClass;
+                    playerStatusText.textContent = playerStatusMsg;
+                }
+                if (setupPlayerStatusDot) {
+                    setupPlayerStatusDot.className = playerStatusClass;
+                    setupPlayerStatusText.textContent = playerStatusMsg;
+                }
+            } else {
+                // Hide indicators when not in online mode
+                if (connectionStatus) connectionStatus.classList.add('hidden');
+                if (setupConnectionStatus) setupConnectionStatus.classList.add('hidden');
+            }
+        }
+
+        // Initialize game
+        function initGame() {
+            const radios = document.querySelectorAll('input[name="gameMode"]');
+            radios.forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    gameState.gameMode = e.target.value;
+                    updateSetupUI();
+                });
+            });
+            
+            // Initialize connection status display
+            updateConnectionStatus();
+        }
+
+        function updateSetupUI() {
+            const boardSizeGroup = document.getElementById('boardSizeGroup');
+            const winLengthGroup = document.getElementById('winLengthGroup');
+            const onlineGroup = document.getElementById('onlineGroup');
+            const joinRoomGroup = document.getElementById('joinRoomGroup');
+            const startGameBtn = document.getElementById('startGameBtn');
+            
+            if (gameState.gameMode === 'online') {
+                boardSizeGroup.classList.add('hidden');
+                winLengthGroup.classList.add('hidden');
+                onlineGroup.classList.remove('hidden');
+                joinRoomGroup.classList.add('hidden');
+                startGameBtn.classList.add('hidden');
+                
+                // Check server availability when switching to online mode
+                checkServerAvailability();
+            } else {
+                boardSizeGroup.classList.remove('hidden');
+                winLengthGroup.classList.remove('hidden');
+                onlineGroup.classList.add('hidden');
+                joinRoomGroup.classList.add('hidden');
+                startGameBtn.classList.remove('hidden');
+                
+                // Clean up if switching away from online mode
+                if (gameState.peer) {
+                    gameState.peer.destroy();
+                    gameState.peer = null;
+                    gameState.serverConnected = false;
+                    gameState.playerConnected = false;
+                }
+            }
+            
+            updateConnectionStatus();
+        }
+
+        function checkServerAvailability() {
+            if (!window.Peer) {
+                gameState.serverConnected = false;
+                updateConnectionStatus();
+                return;
+            }
+
+            // Only check if we don't already have a peer connection
+            if (!gameState.peer) {
+                gameState.serverConnected = false;
+                updateConnectionStatus();
+                
+                // Try to create a test peer connection to check server availability
+                const testPeer = new Peer({
+                    host: '0.peerjs.com',
+                    port: 443,
+                    path: '/',
+                    secure: true
+                });
+
+                testPeer.on('open', () => {
+                    gameState.serverConnected = true;
+                    updateConnectionStatus();
+                    if (!testPeer.destroyed) {
+                        testPeer.destroy();
+                    }
+                });
+
+                testPeer.on('error', (err) => {
+                    gameState.serverConnected = false;
+                    updateConnectionStatus();
+                    if (!testPeer.destroyed) {
+                        testPeer.destroy();
+                    }
+                });
+
+                // Timeout after 5 seconds
+                setTimeout(() => {
+                    if (testPeer && !testPeer.destroyed) {
+                        gameState.serverConnected = false;
+                        updateConnectionStatus();
+                        testPeer.destroy();
+                    }
+                }, 5000);
+            } else {
+                // If we already have a peer, use its status
+                updateConnectionStatus();
+            }
+        }
+
+        function startGame() {
+            gameState.boardSize = parseInt(document.getElementById('boardSize').value);
+            gameState.winLength = parseInt(document.getElementById('winLength').value);
+            gameState.gameMode = document.querySelector('input[name="gameMode"]:checked').value;
+
+            if (gameState.gameMode === 'online') {
+                if (!gameState.connected) {
+                    showToast('Сначала подключитесь к комнате', 'error');
+                    return;
+                }
+            }
+
+            gameState.gameStarted = true;
+            gameState.board = new Map();
+            gameState.currentPlayer = 'X';
+            gameState.winner = null;
+            gameState.winningLine = [];
+            gameState.isThinking = false;
+
+            generateGridCoords();
+            
+            document.getElementById('setupScreen').classList.add('hidden');
+            document.getElementById('gameScreen').classList.remove('hidden');
+            
+            updateGameInfo();
+            updateConnectionStatus();
+            drawBoard();
+        }
+
+        function createRoom() {
+            if (!window.Peer) {
+                showToast('PeerJS не загружен. Проверьте подключение к интернету.', 'error');
+                return;
+            }
+
+            gameState.isHost = true;
+            gameState.myPlayer = 'X';
+            gameState.serverConnected = false;
+            gameState.playerConnected = false;
+            updateConnectionStatus();
+            
+            // Generate random peer ID
+            gameState.peerId = 'hex-' + Math.random().toString(36).substring(2, 9);
+            
+            gameState.peer = new Peer(gameState.peerId, {
+                host: '0.peerjs.com',
+                port: 443,
+                path: '/',
+                secure: true
+            });
+
+            gameState.peer.on('open', (id) => {
+                gameState.peerId = id;
+                gameState.serverConnected = true;
+                document.getElementById('roomCodeInput').value = id;
+                showToast('Комната создана! Код: ' + id, 'success');
+                document.getElementById('onlineGroup').classList.add('hidden');
+                document.getElementById('joinRoomGroup').classList.remove('hidden');
+                document.getElementById('roomCodeInput').readOnly = true;
+                updateConnectionStatus();
+            });
+
+            gameState.peer.on('connection', (conn) => {
+                gameState.connection = conn;
+                setupConnection(conn);
+                showToast('Игрок подключился!', 'success');
+                gameState.connected = true;
+                gameState.playerConnected = true;
+                updateConnectionStatus();
+                
+                // Initialize game settings for host when first player connects
+                if (!gameState.gameStarted) {
+                    gameState.boardSize = 5;
+                    gameState.winLength = 3;
+                    startGame();
+                    
+                    // Send game state to connected player
+                    setTimeout(() => {
+                        if (conn.open) {
+                            conn.send({
+                                type: 'gameState',
+                                boardSize: gameState.boardSize,
+                                winLength: gameState.winLength,
+                                board: Array.from(gameState.board.entries()),
+                                currentPlayer: gameState.currentPlayer
+                            });
+                        }
+                    }, 100);
+                }
+            });
+
+            gameState.peer.on('error', (err) => {
+                gameState.serverConnected = false;
+                showToast('Ошибка PeerJS: ' + err.message, 'error');
+                console.error('PeerJS error:', err);
+                updateConnectionStatus();
+            });
+        }
+
+        function showJoinRoom() {
+            document.getElementById('onlineGroup').classList.add('hidden');
+            document.getElementById('joinRoomGroup').classList.remove('hidden');
+            document.getElementById('roomCodeInput').readOnly = false;
+            document.getElementById('roomCodeInput').value = '';
+        }
+
+        function cancelJoinRoom() {
+            document.getElementById('onlineGroup').classList.remove('hidden');
+            document.getElementById('joinRoomGroup').classList.add('hidden');
+            if (gameState.peer) {
+                gameState.peer.destroy();
+                gameState.peer = null;
+            }
+        }
+
+        function joinRoom() {
+            const roomCode = document.getElementById('roomCodeInput').value.trim();
+            if (!roomCode) {
+                showToast('Введите код комнаты', 'error');
+                return;
+            }
+
+            if (!window.Peer) {
+                showToast('PeerJS не загружен. Проверьте подключение к интернету.', 'error');
+                return;
+            }
+
+            gameState.isHost = false;
+            gameState.myPlayer = 'O';
+            gameState.serverConnected = false;
+            gameState.playerConnected = false;
+            updateConnectionStatus();
+
+            gameState.peer = new Peer({
+                host: '0.peerjs.com',
+                port: 443,
+                path: '/',
+                secure: true
+            });
+
+            gameState.peer.on('open', (id) => {
+                gameState.serverConnected = true;
+                updateConnectionStatus();
+                const conn = gameState.peer.connect(roomCode);
+                gameState.connection = conn;
+                setupConnection(conn);
+            });
+
+            gameState.peer.on('error', (err) => {
+                gameState.serverConnected = false;
+                showToast('Ошибка подключения: ' + err.message, 'error');
+                console.error('PeerJS error:', err);
+                updateConnectionStatus();
+            });
+        }
+
+        function setupConnection(conn) {
+            conn.on('open', () => {
+                gameState.connected = true;
+                gameState.playerConnected = true;
+                showToast('Подключено!', 'success');
+                updateConnectionStatus();
+                
+                if (gameState.isHost && gameState.gameStarted) {
+                    // Host sends initial game state if game already started
+                    conn.send({
+                        type: 'gameState',
+                        boardSize: gameState.boardSize,
+                        winLength: gameState.winLength,
+                        board: Array.from(gameState.board.entries()),
+                        currentPlayer: gameState.currentPlayer
+                    });
+                } else if (!gameState.isHost) {
+                    // Client waits for game state from host
+                    showToast('Ожидание начала игры...', 'success');
+                }
+            });
+
+            conn.on('data', (data) => {
+                handlePeerData(data);
+            });
+
+            conn.on('close', () => {
+                gameState.connected = false;
+                gameState.playerConnected = false;
+                showToast('Соединение разорвано. Игра приостановлена.', 'error');
+                updateConnectionStatus();
+                updateGameInfo();
+            });
+
+            conn.on('error', (err) => {
+                gameState.playerConnected = false;
+                showToast('Ошибка соединения: ' + err.message, 'error');
+                console.error('Connection error:', err);
+                updateConnectionStatus();
+            });
+        }
+
+        function handlePeerData(data) {
+            switch (data.type) {
+                case 'move':
+                    const { q, r, player } = data;
+                    const key = `${q},${r}`;
+                    if (!gameState.board.get(key)) {
+                        gameState.board.set(key, player);
+                        const result = checkWinner({ q, r });
+                        if (result.winner) {
+                            gameState.winner = result.winner;
+                            gameState.winningLine = result.line;
+                        } else {
+                            gameState.currentPlayer = gameState.currentPlayer === 'X' ? 'O' : 'X';
+                        }
+                        updateGameInfo();
+                        drawBoard();
+                    }
+                    break;
+                case 'gameState':
+                    if (!gameState.isHost) {
+                        gameState.boardSize = data.boardSize;
+                        gameState.winLength = data.winLength;
+                        gameState.board = new Map(data.board);
+                        gameState.currentPlayer = data.currentPlayer;
+                        generateGridCoords();
+                        gameState.gameStarted = true;
+                        updateGameInfo();
+                        drawBoard();
+                    }
+                    break;
+                case 'reset':
+                    resetGame();
+                    break;
+            }
+        }
+
+        function generateGridCoords() {
+            gameState.gridCoords = [];
+            const radius = Math.floor(gameState.boardSize / 2);
+            
+            for (let q = -radius; q <= radius; q++) {
+                for (let r = -radius; r <= radius; r++) {
+                    const s = -q - r;
+                    if (Math.abs(s) <= radius) {
+                        gameState.gridCoords.push({ q, r });
+                    }
+                }
+            }
+        }
+
+        function hexToPixel(q, r) {
+            const size = gameState.hexSize;
+            const x = size * (Math.sqrt(3) * q + Math.sqrt(3) / 2 * r);
+            const y = size * (3 / 2 * r);
+            return { x, y };
+        }
+
+        function getHexPoints(centerX, centerY, size) {
+            const points = [];
+            for (let i = 0; i < 6; i++) {
+                const angle = (Math.PI / 3) * i - Math.PI / 6;
+                const x = centerX + size * Math.cos(angle);
+                const y = centerY + size * Math.sin(angle);
+                points.push(`${x},${y}`);
+            }
+            return points.join(' ');
+        }
+
+        function drawBoard() {
+            const canvas = document.getElementById('gameCanvas');
+            const padding = gameState.hexSize * 2;
+            
+            const pixels = gameState.gridCoords.map(c => hexToPixel(c.q, c.r));
+            const minX = Math.min(...pixels.map(p => p.x)) - padding;
+            const maxX = Math.max(...pixels.map(p => p.x)) + padding;
+            const minY = Math.min(...pixels.map(p => p.y)) - padding;
+            const maxY = Math.max(...pixels.map(p => p.y)) + padding;
+            const width = maxX - minX;
+            const height = maxY - minY;
+
+            canvas.setAttribute('viewBox', `${minX} ${minY} ${width} ${height}`);
+            canvas.setAttribute('width', Math.min(width, 800));
+            canvas.setAttribute('height', Math.min(height, 600));
+            
+            // Clear canvas
+            canvas.innerHTML = '';
+
+            // Draw hexagons
+            gameState.gridCoords.forEach(({ q, r }) => {
+                const { x, y } = hexToPixel(q, r);
+                const key = `${q},${r}`;
+                const player = gameState.board.get(key);
+                const isWinning = isInWinningLine(q, r);
+                
+                // Create group
+                const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                
+                // Create polygon
+                const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                polygon.setAttribute('points', getHexPoints(x, y, gameState.hexSize));
+                polygon.setAttribute('stroke', isWinning ? '#059669' : '#9ca3af');
+                polygon.setAttribute('stroke-width', '2');
+                
+                if (isWinning) {
+                    polygon.setAttribute('fill', '#10b981');
+                } else if (player) {
+                    polygon.setAttribute('fill', '#e0e7ff');
+                    polygon.classList.add('occupied');
+                } else {
+                    polygon.setAttribute('fill', '#f3f4f6');
+                    polygon.classList.add('empty');
+                }
+                
+                let canClick = !player && !gameState.winner && !gameState.isThinking;
+                
+                if (gameState.gameMode === 'bot') {
+                    canClick = canClick && gameState.currentPlayer === 'X';
+                } else if (gameState.gameMode === 'online') {
+                    canClick = canClick && gameState.currentPlayer === gameState.myPlayer && gameState.connected;
+                }
+                
+                if (canClick) {
+                    polygon.classList.add('hex-cell');
+                    polygon.style.cursor = 'pointer';
+                    polygon.addEventListener('click', () => handleCellClick(q, r));
+                } else {
+                    polygon.classList.add('disabled');
+                }
+                
+                g.appendChild(polygon);
+                
+                // Add player mark
+                if (player) {
+                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    text.setAttribute('x', x);
+                    text.setAttribute('y', y);
+                    text.setAttribute('text-anchor', 'middle');
+                    text.setAttribute('dominant-baseline', 'middle');
+                    text.setAttribute('font-size', gameState.hexSize);
+                    text.setAttribute('font-weight', 'bold');
+                    text.setAttribute('fill', isWinning ? '#ffffff' : (player === 'X' ? '#3b82f6' : '#ef4444'));
+                    text.setAttribute('pointer-events', 'none');
+                    text.textContent = player;
+                    g.appendChild(text);
+                }
+                
+                canvas.appendChild(g);
+            });
+        }
+
+        function handleCellClick(q, r) {
+            if (gameState.winner || !gameState.gameStarted || gameState.isThinking) return;
+            if (gameState.gameMode === 'bot' && gameState.currentPlayer === 'O') return;
+            
+            // Online mode: check if it's player's turn
+            if (gameState.gameMode === 'online') {
+                if (gameState.currentPlayer !== gameState.myPlayer) {
+                    showToast('Не ваш ход!', 'error');
+                    return;
+                }
+                if (!gameState.connected) {
+                    showToast('Нет соединения с игроком', 'error');
+                    return;
+                }
+            }
+            
+            const key = `${q},${r}`;
+            if (gameState.board.get(key)) return;
+            
+            gameState.board.set(key, gameState.currentPlayer);
+            
+            // Send move to peer in online mode
+            if (gameState.gameMode === 'online' && gameState.connection && gameState.connection.open) {
+                gameState.connection.send({
+                    type: 'move',
+                    q: q,
+                    r: r,
+                    player: gameState.currentPlayer
+                });
+            }
+            
+            const result = checkWinner({ q, r });
+            
+            if (result.winner) {
+                gameState.winner = result.winner;
+                gameState.winningLine = result.line;
+            } else {
+                gameState.currentPlayer = gameState.currentPlayer === 'X' ? 'O' : 'X';
+            }
+            
+            updateGameInfo();
+            drawBoard();
+            
+            // Bot move
+            if (gameState.gameMode === 'bot' && gameState.currentPlayer === 'O' && !gameState.winner) {
+                setTimeout(makeBotMove, 500);
+            }
+        }
+
+        function checkWinner(lastMove) {
+            const player = gameState.board.get(`${lastMove.q},${lastMove.r}`);
+            if (!player) return { winner: null, line: [] };
+
+            const directions = [
+                { dq: 1, dr: 0 },
+                { dq: 0, dr: 1 },
+                { dq: -1, dr: 1 },
+                { dq: -1, dr: 0 },
+                { dq: 0, dr: -1 },
+                { dq: 1, dr: -1 },
+            ];
+
+            for (const dir of directions) {
+                const line = [lastMove];
+                
+                // Forward
+                for (let i = 1; i < gameState.winLength; i++) {
+                    const q = lastMove.q + dir.dq * i;
+                    const r = lastMove.r + dir.dr * i;
+                    if (gameState.board.get(`${q},${r}`) === player) {
+                        line.push({ q, r });
+                    } else {
+                        break;
+                    }
+                }
+                
+                // Backward
+                for (let i = 1; i < gameState.winLength; i++) {
+                    const q = lastMove.q - dir.dq * i;
+                    const r = lastMove.r - dir.dr * i;
+                    if (gameState.board.get(`${q},${r}`) === player) {
+                        line.unshift({ q, r });
+                    } else {
+                        break;
+                    }
+                }
+                
+                if (line.length >= gameState.winLength) {
+                    return { winner: player, line };
+                }
+            }
+            
+            return { winner: null, line: [] };
+        }
+
+        function makeBotMove() {
+            gameState.isThinking = true;
+            updateGameInfo();
+            
+            const botMove = findBotMove();
+            if (botMove) {
+                gameState.board.set(`${botMove.q},${botMove.r}`, 'O');
+                
+                const result = checkWinner(botMove);
+                if (result.winner) {
+                    gameState.winner = result.winner;
+                    gameState.winningLine = result.line;
+                } else {
+                    gameState.currentPlayer = 'X';
+                }
+            }
+            
+            gameState.isThinking = false;
+            updateGameInfo();
+            drawBoard();
+        }
+
+        function findBotMove() {
+            const emptyCells = gameState.gridCoords.filter(({ q, r }) => 
+                !gameState.board.get(`${q},${r}`)
+            );
+            if (emptyCells.length === 0) return null;
+
+            // Check for winning move
+            for (const cell of emptyCells) {
+                const testBoard = new Map(gameState.board);
+                testBoard.set(`${cell.q},${cell.r}`, 'O');
+                gameState.board = testBoard;
+                const result = checkWinner(cell);
+                gameState.board.delete(`${cell.q},${cell.r}`);
+                if (result.winner === 'O') {
+                    return cell;
+                }
+            }
+
+            // Block player's winning move
+            for (const cell of emptyCells) {
+                const testBoard = new Map(gameState.board);
+                testBoard.set(`${cell.q},${cell.r}`, 'X');
+                gameState.board = testBoard;
+                const result = checkWinner(cell);
+                gameState.board.delete(`${cell.q},${cell.r}`);
+                if (result.winner === 'X') {
+                    return cell;
+                }
+            }
+
+            // Strategic move
+            let bestCell = null;
+            let bestScore = -1;
+
+            const directions = [
+                { dq: 1, dr: 0 },
+                { dq: 0, dr: 1 },
+                { dq: -1, dr: 1 },
+                { dq: -1, dr: 0 },
+                { dq: 0, dr: -1 },
+                { dq: 1, dr: -1 },
+            ];
+
+            for (const cell of emptyCells) {
+                let score = 0;
+
+                for (const dir of directions) {
+                    const forward = countInDirection(cell, dir, 'O');
+                    const backward = countInDirection(cell, { dq: -dir.dq, dr: -dir.dr }, 'O');
+                    const total = forward + backward;
+
+                    if (total >= gameState.winLength - 1) {
+                        score += 100;
+                    } else if (total >= gameState.winLength - 2) {
+                        score += 50;
+                    } else {
+                        score += total * 10;
+                    }
+                }
+
+                const distanceFromCenter = Math.abs(cell.q) + Math.abs(cell.r) + Math.abs(-cell.q - cell.r);
+                score += (gameState.boardSize - distanceFromCenter) * 2;
+
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestCell = cell;
+                }
+            }
+
+            return bestCell || emptyCells[Math.floor(Math.random() * emptyCells.length)];
+        }
+
+        function countInDirection(start, dir, player) {
+            let count = 0;
+            for (let i = 1; i < gameState.winLength; i++) {
+                const q = start.q + dir.dq * i;
+                const r = start.r + dir.dr * i;
+                if (gameState.board.get(`${q},${r}`) === player) {
+                    count++;
+                } else {
+                    break;
+                }
+            }
+            return count;
+        }
+
+        function isInWinningLine(q, r) {
+            return gameState.winningLine.some(coord => coord.q === q && coord.r === r);
+        }
+
+        function updateGameInfo() {
+            document.getElementById('currentPlayer').textContent = gameState.currentPlayer;
+            
+            let status = '';
+            if (gameState.isThinking) {
+                status = '(Думает...)';
+            } else if (gameState.gameMode === 'online') {
+                if (!gameState.connected) {
+                    status = '(Ожидание подключения...)';
+                } else if (gameState.currentPlayer === gameState.myPlayer) {
+                    status = '(Ваш ход)';
+                } else {
+                    status = '(Ход соперника)';
+                }
+            }
+            document.getElementById('playerStatus').textContent = status;
+
+            if (gameState.winner) {
+                document.getElementById('winnerDisplay').classList.remove('hidden');
+                document.getElementById('winner').textContent = gameState.winner;
+            } else {
+                document.getElementById('winnerDisplay').classList.add('hidden');
+            }
+
+            const modeText = gameState.gameMode === 'pvp' ? 'Игрок vs Игрок' : 
+                            gameState.gameMode === 'bot' ? 'Игрок vs Бот' : 'Онлайн';
+            document.getElementById('gameSettings').textContent = 
+                `Режим: ${modeText} | Размер: ${gameState.boardSize} | Линия: ${gameState.winLength}`;
+
+            // Show room code in online mode
+            if (gameState.gameMode === 'online' && gameState.peerId) {
+                document.getElementById('roomCodeDisplay').classList.remove('hidden');
+                document.getElementById('roomCode').textContent = gameState.peerId;
+            } else {
+                document.getElementById('roomCodeDisplay').classList.add('hidden');
+            }
+
+            if (gameState.gameMode === 'online') {
+                document.getElementById('resetBtn').classList.add('hidden');
+            } else {
+                document.getElementById('resetBtn').classList.remove('hidden');
+            }
+
+            updateConnectionStatus();
+        }
+
+        function resetGame() {
+            gameState.board = new Map();
+            gameState.currentPlayer = 'X';
+            gameState.winner = null;
+            gameState.winningLine = [];
+            gameState.isThinking = false;
+            
+            // Send reset to peer in online mode
+            if (gameState.gameMode === 'online' && gameState.connection && gameState.connection.open) {
+                gameState.connection.send({ type: 'reset' });
+            }
+            
+            updateGameInfo();
+            drawBoard();
+        }
+
+        function backToMenu() {
+            gameState.gameStarted = false;
+            
+            // Clean up peer connection
+            if (gameState.connection) {
+                gameState.connection.close();
+                gameState.connection = null;
+            }
+            if (gameState.peer) {
+                gameState.peer.destroy();
+                gameState.peer = null;
+            }
+            gameState.connected = false;
+            gameState.serverConnected = false;
+            gameState.playerConnected = false;
+            gameState.peerId = null;
+            gameState.isHost = false;
+            
+            document.getElementById('setupScreen').classList.remove('hidden');
+            document.getElementById('gameScreen').classList.add('hidden');
+            updateSetupUI();
+        }
+
+        function copyRoomCode() {
+            if (gameState.peerId) {
+                navigator.clipboard.writeText(gameState.peerId).then(() => {
+                    showToast('Код комнаты скопирован!', 'success');
+                }).catch(() => {
+                    showToast('Не удалось скопировать код', 'error');
+                });
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', initGame);
+    </script>
+</body>
+</html>
