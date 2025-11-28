@@ -14,25 +14,49 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #e0f2fe 0%, #f3e8ff 100%);
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #0f1629 100%);
+            background-attachment: fixed;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(0, 150, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(255, 0, 150, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
         }
 
         .container {
             max-width: 1200px;
             width: 100%;
+            position: relative;
+            z-index: 1;
         }
 
         .card {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            background: rgba(15, 22, 41, 0.8);
+            border: 2px solid rgba(0, 150, 255, 0.3);
+            border-radius: 16px;
+            box-shadow: 
+                0 0 20px rgba(0, 150, 255, 0.2),
+                0 8px 32px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
             padding: 24px;
             margin-bottom: 24px;
+            backdrop-filter: blur(10px);
         }
 
         .setup-screen {
@@ -45,12 +69,19 @@
             font-weight: bold;
             text-align: center;
             margin-bottom: 8px;
+            color: #00d4ff;
+            text-shadow: 
+                0 0 10px rgba(0, 212, 255, 0.8),
+                0 0 20px rgba(0, 212, 255, 0.6),
+                0 0 30px rgba(0, 212, 255, 0.4);
+            letter-spacing: 2px;
         }
 
         .subtitle {
             text-align: center;
-            color: #6b7280;
+            color: rgba(200, 220, 255, 0.7);
             margin-bottom: 24px;
+            text-shadow: 0 0 5px rgba(200, 220, 255, 0.3);
         }
 
         .form-group {
@@ -62,6 +93,8 @@
             font-size: 0.875rem;
             font-weight: 500;
             margin-bottom: 8px;
+            color: rgba(200, 220, 255, 0.9);
+            text-shadow: 0 0 5px rgba(200, 220, 255, 0.3);
         }
 
         .radio-group {
@@ -77,18 +110,50 @@
         }
 
         input[type="radio"] {
-            width: 16px;
-            height: 16px;
+            width: 18px;
+            height: 18px;
             cursor: pointer;
+            accent-color: #00d4ff;
+        }
+
+        .radio-option {
+            padding: 8px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .radio-option:hover {
+            background: rgba(0, 150, 255, 0.1);
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.2);
+        }
+
+        .radio-option span {
+            color: rgba(200, 220, 255, 0.9);
+            text-shadow: 0 0 5px rgba(200, 220, 255, 0.3);
         }
 
         select, input[type="text"] {
             width: 100%;
             padding: 10px;
-            border: 1px solid #d1d5db;
-            border-radius: 6px;
+            border: 2px solid rgba(0, 150, 255, 0.4);
+            border-radius: 8px;
             font-size: 1rem;
-            background: white;
+            background: rgba(10, 20, 40, 0.6);
+            color: #00d4ff;
+            transition: all 0.3s ease;
+        }
+
+        select:focus, input[type="text"]:focus {
+            outline: none;
+            border-color: #00d4ff;
+            box-shadow: 
+                0 0 10px rgba(0, 212, 255, 0.5),
+                inset 0 0 10px rgba(0, 212, 255, 0.1);
+        }
+
+        select option {
+            background: #0a1428;
+            color: #00d4ff;
         }
 
         input[type="text"] {
@@ -97,6 +162,7 @@
             letter-spacing: 0.1em;
             font-family: monospace;
             text-transform: uppercase;
+            text-shadow: 0 0 5px rgba(0, 212, 255, 0.5);
         }
 
         button {
@@ -111,37 +177,56 @@
         }
 
         .btn-primary {
-            background: #3b82f6;
+            background: linear-gradient(135deg, #0096ff 0%, #0066ff 100%);
             color: white;
+            border: 2px solid #00d4ff;
+            box-shadow: 
+                0 0 15px rgba(0, 212, 255, 0.5),
+                0 4px 15px rgba(0, 150, 255, 0.3);
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
         }
 
         .btn-primary:hover {
-            background: #2563eb;
+            background: linear-gradient(135deg, #00b4ff 0%, #0088ff 100%);
+            box-shadow: 
+                0 0 25px rgba(0, 212, 255, 0.8),
+                0 6px 20px rgba(0, 150, 255, 0.5);
+            transform: translateY(-2px);
         }
 
         .btn-primary:disabled {
-            background: #9ca3af;
+            background: rgba(100, 100, 120, 0.3);
+            border-color: rgba(100, 100, 120, 0.5);
+            box-shadow: none;
             cursor: not-allowed;
+            opacity: 0.5;
         }
 
         .btn-secondary {
-            background: #f3f4f6;
-            color: #374151;
+            background: rgba(20, 30, 50, 0.6);
+            color: rgba(200, 220, 255, 0.9);
+            border: 2px solid rgba(0, 150, 255, 0.3);
             margin-top: 8px;
+            box-shadow: 0 0 10px rgba(0, 150, 255, 0.2);
         }
 
         .btn-secondary:hover {
-            background: #e5e7eb;
+            background: rgba(30, 40, 60, 0.8);
+            border-color: rgba(0, 212, 255, 0.5);
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
         }
 
         .btn-outline {
-            background: white;
-            border: 1px solid #d1d5db;
-            color: #374151;
+            background: rgba(15, 22, 41, 0.6);
+            border: 2px solid rgba(0, 212, 255, 0.5);
+            color: #00d4ff;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
         }
 
         .btn-outline:hover {
-            background: #f9fafb;
+            background: rgba(25, 35, 55, 0.8);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.6);
+            transform: translateY(-2px);
         }
 
         .game-header {
@@ -159,13 +244,18 @@
 
         .game-info-label {
             font-size: 0.875rem;
-            color: #6b7280;
+            color: rgba(200, 220, 255, 0.7);
             margin-bottom: 4px;
+            text-shadow: 0 0 5px rgba(200, 220, 255, 0.3);
         }
 
         .game-info-value {
             font-size: 1.5rem;
             font-weight: bold;
+            color: #ff3366;
+            text-shadow: 
+                0 0 10px rgba(255, 51, 102, 0.8),
+                0 0 20px rgba(255, 51, 102, 0.6);
         }
 
         .room-code {
@@ -179,25 +269,54 @@
             font-family: monospace;
             font-weight: bold;
             letter-spacing: 0.1em;
+            color: #00d4ff;
+            text-shadow: 
+                0 0 10px rgba(0, 212, 255, 0.8),
+                0 0 20px rgba(0, 212, 255, 0.5);
         }
 
         .copy-btn {
             width: auto;
             padding: 8px;
-            background: transparent;
-            border: 1px solid #d1d5db;
-            border-radius: 4px;
+            background: rgba(20, 30, 50, 0.6);
+            border: 2px solid rgba(0, 212, 255, 0.5);
+            border-radius: 6px;
             cursor: pointer;
+            color: #00d4ff;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
         }
 
         .copy-btn:hover {
-            background: #f3f4f6;
+            background: rgba(30, 40, 60, 0.8);
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.6);
+            transform: translateY(-2px);
         }
 
         .winner-text {
-            color: #10b981;
+            color: #00ff88;
             font-size: 1.5rem;
             font-weight: bold;
+            text-shadow: 
+                0 0 15px rgba(0, 255, 136, 0.9),
+                0 0 30px rgba(0, 255, 136, 0.6),
+                0 0 45px rgba(0, 255, 136, 0.3);
+            animation: glow-pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes glow-pulse {
+            0%, 100% {
+                text-shadow: 
+                    0 0 15px rgba(0, 255, 136, 0.9),
+                    0 0 30px rgba(0, 255, 136, 0.6),
+                    0 0 45px rgba(0, 255, 136, 0.3);
+            }
+            50% {
+                text-shadow: 
+                    0 0 25px rgba(0, 255, 136, 1),
+                    0 0 50px rgba(0, 255, 136, 0.8),
+                    0 0 75px rgba(0, 255, 136, 0.5);
+            }
         }
 
         .btn-group {
@@ -213,16 +332,21 @@
         .game-settings {
             text-align: center;
             font-size: 0.875rem;
-            color: #6b7280;
+            color: rgba(200, 220, 255, 0.7);
+            text-shadow: 0 0 5px rgba(200, 220, 255, 0.3);
         }
 
         .game-board {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            background: rgba(10, 15, 30, 0.6);
+            border: 2px solid rgba(0, 150, 255, 0.3);
+            border-radius: 16px;
+            box-shadow: 
+                0 0 30px rgba(0, 150, 255, 0.3),
+                inset 0 0 50px rgba(0, 50, 100, 0.2);
             padding: 32px;
             display: flex;
             justify-content: center;
+            backdrop-filter: blur(5px);
         }
 
         #gameCanvas {
@@ -236,19 +360,51 @@
         }
 
         .hex-cell:hover:not(.occupied):not(.disabled) {
-            fill: #dbeafe;
+            fill: rgba(0, 212, 255, 0.2);
+            filter: drop-shadow(0 0 8px rgba(0, 212, 255, 0.6));
         }
 
         .hex-cell.winning {
-            fill: #10b981;
+            fill: #00ff88;
+            filter: drop-shadow(0 0 15px rgba(0, 255, 136, 0.9));
+            animation: winning-glow 1.5s ease-in-out infinite;
+        }
+
+        @keyframes winning-glow {
+            0%, 100% {
+                filter: drop-shadow(0 0 15px rgba(0, 255, 136, 0.9));
+            }
+            50% {
+                filter: drop-shadow(0 0 25px rgba(0, 255, 136, 1));
+            }
+        }
+
+        /* Animation for winning line cells - sequential glow */
+        .winning-cell {
+            animation: winning-sequence 1.5s ease-in-out infinite;
+        }
+
+        @keyframes winning-sequence {
+            0% {
+                fill: rgba(0, 255, 136, 0.3);
+                filter: drop-shadow(0 0 10px rgba(0, 255, 136, 0.6));
+            }
+            50% {
+                fill: rgba(0, 255, 136, 1);
+                filter: drop-shadow(0 0 40px rgba(0, 255, 136, 1));
+            }
+            100% {
+                fill: rgba(0, 255, 136, 0.3);
+                filter: drop-shadow(0 0 10px rgba(0, 255, 136, 0.6));
+            }
         }
 
         .hex-cell.occupied {
-            fill: #e0e7ff;
+            fill: rgba(20, 30, 50, 0.4);
         }
 
         .hex-cell.empty {
-            fill: #f3f4f6;
+            fill: rgba(15, 25, 40, 0.3);
         }
 
         .hex-cell.disabled {
@@ -259,21 +415,37 @@
             position: fixed;
             top: 20px;
             right: 20px;
-            background: #1f2937;
+            background: rgba(15, 22, 41, 0.95);
             color: white;
             padding: 12px 20px;
             border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            border: 2px solid rgba(0, 150, 255, 0.5);
+            box-shadow: 
+                0 0 20px rgba(0, 150, 255, 0.5),
+                0 4px 15px rgba(0, 0, 0, 0.5);
             z-index: 1000;
             animation: slideIn 0.3s ease-out;
+            backdrop-filter: blur(10px);
         }
 
         .toast.success {
-            background: #10b981;
+            background: rgba(0, 255, 136, 0.2);
+            border-color: rgba(0, 255, 136, 0.6);
+            box-shadow: 
+                0 0 20px rgba(0, 255, 136, 0.6),
+                0 4px 15px rgba(0, 0, 0, 0.5);
+            color: #00ff88;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.8);
         }
 
         .toast.error {
-            background: #ef4444;
+            background: rgba(255, 51, 102, 0.2);
+            border-color: rgba(255, 51, 102, 0.6);
+            box-shadow: 
+                0 0 20px rgba(255, 51, 102, 0.6),
+                0 4px 15px rgba(0, 0, 0, 0.5);
+            color: #ff3366;
+            text-shadow: 0 0 10px rgba(255, 51, 102, 0.8);
         }
 
         @keyframes slideIn {
@@ -312,7 +484,9 @@
             font-size: 0.875rem;
             padding: 8px 12px;
             border-radius: 6px;
-            background: #f3f4f6;
+            background: rgba(20, 30, 50, 0.6);
+            border: 1px solid rgba(0, 150, 255, 0.3);
+            color: rgba(200, 220, 255, 0.9);
         }
 
         .status-dot {
@@ -324,16 +498,19 @@
         }
 
         .status-dot.online {
-            background: #10b981;
+            background: #00ff88;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.8);
         }
 
         .status-dot.offline {
-            background: #ef4444;
+            background: #ff3366;
             animation: none;
+            box-shadow: 0 0 10px rgba(255, 51, 102, 0.6);
         }
 
         .status-dot.connecting {
-            background: #f59e0b;
+            background: #ffaa00;
+            box-shadow: 0 0 10px rgba(255, 170, 0, 0.8);
         }
 
         @keyframes pulse {
@@ -839,13 +1016,17 @@
                 
                 if (gameState.isHost && gameState.gameStarted) {
                     // Host sends initial game state if game already started
-                    conn.send({
-                        type: 'gameState',
-                        boardSize: gameState.boardSize,
-                        winLength: gameState.winLength,
-                        board: Array.from(gameState.board.entries()),
-                        currentPlayer: gameState.currentPlayer
-                    });
+                    setTimeout(() => {
+                        if (conn.open) {
+                            conn.send({
+                                type: 'gameState',
+                                boardSize: gameState.boardSize,
+                                winLength: gameState.winLength,
+                                board: Array.from(gameState.board.entries()),
+                                currentPlayer: gameState.currentPlayer
+                            });
+                        }
+                    }, 200);
                 } else if (!gameState.isHost) {
                     // Client waits for game state from host
                     showToast('Ожидание начала игры...', 'success');
@@ -886,6 +1067,14 @@
                         } else {
                             gameState.currentPlayer = gameState.currentPlayer === 'X' ? 'O' : 'X';
                         }
+                        
+                        // Make sure we're on game screen
+                        if (!gameState.gameStarted) {
+                            gameState.gameStarted = true;
+                            document.getElementById('setupScreen').classList.add('hidden');
+                            document.getElementById('gameScreen').classList.remove('hidden');
+                        }
+                        
                         updateGameInfo();
                         drawBoard();
                     }
@@ -898,8 +1087,15 @@
                         gameState.currentPlayer = data.currentPlayer;
                         generateGridCoords();
                         gameState.gameStarted = true;
+                        
+                        // Switch to game screen
+                        document.getElementById('setupScreen').classList.add('hidden');
+                        document.getElementById('gameScreen').classList.remove('hidden');
+                        
                         updateGameInfo();
+                        updateConnectionStatus();
                         drawBoard();
+                        showToast('Игра началась!', 'success');
                     }
                     break;
                 case 'reset':
@@ -958,6 +1154,62 @@
             
             // Clear canvas
             canvas.innerHTML = '';
+            
+            // Add SVG filters for neon glow effects
+            const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+            
+            // Blue glow filter
+            const blueGlow = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+            blueGlow.setAttribute('id', 'glow-blue');
+            const blueFeGaussianBlur = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
+            blueFeGaussianBlur.setAttribute('stdDeviation', '3');
+            blueFeGaussianBlur.setAttribute('result', 'coloredBlur');
+            const blueFeMerge = document.createElementNS('http://www.w3.org/2000/svg', 'feMerge');
+            const blueFeMergeNode1 = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
+            blueFeMergeNode1.setAttribute('in', 'coloredBlur');
+            const blueFeMergeNode2 = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
+            blueFeMergeNode2.setAttribute('in', 'SourceGraphic');
+            blueGlow.appendChild(blueFeGaussianBlur);
+            blueFeMerge.appendChild(blueFeMergeNode1);
+            blueFeMerge.appendChild(blueFeMergeNode2);
+            blueGlow.appendChild(blueFeMerge);
+            
+            // Red glow filter
+            const redGlow = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+            redGlow.setAttribute('id', 'glow-red');
+            const redFeGaussianBlur = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
+            redFeGaussianBlur.setAttribute('stdDeviation', '3');
+            redFeGaussianBlur.setAttribute('result', 'coloredBlur');
+            const redFeMerge = document.createElementNS('http://www.w3.org/2000/svg', 'feMerge');
+            const redFeMergeNode1 = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
+            redFeMergeNode1.setAttribute('in', 'coloredBlur');
+            const redFeMergeNode2 = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
+            redFeMergeNode2.setAttribute('in', 'SourceGraphic');
+            redGlow.appendChild(redFeGaussianBlur);
+            redFeMerge.appendChild(redFeMergeNode1);
+            redFeMerge.appendChild(redFeMergeNode2);
+            redGlow.appendChild(redFeMerge);
+            
+            // White glow filter for winning cells
+            const whiteGlow = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+            whiteGlow.setAttribute('id', 'glow-white');
+            const whiteFeGaussianBlur = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
+            whiteFeGaussianBlur.setAttribute('stdDeviation', '4');
+            whiteFeGaussianBlur.setAttribute('result', 'coloredBlur');
+            const whiteFeMerge = document.createElementNS('http://www.w3.org/2000/svg', 'feMerge');
+            const whiteFeMergeNode1 = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
+            whiteFeMergeNode1.setAttribute('in', 'coloredBlur');
+            const whiteFeMergeNode2 = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
+            whiteFeMergeNode2.setAttribute('in', 'SourceGraphic');
+            whiteGlow.appendChild(whiteFeGaussianBlur);
+            whiteFeMerge.appendChild(whiteFeMergeNode1);
+            whiteFeMerge.appendChild(whiteFeMergeNode2);
+            whiteGlow.appendChild(whiteFeMerge);
+            
+            defs.appendChild(blueGlow);
+            defs.appendChild(redGlow);
+            defs.appendChild(whiteGlow);
+            canvas.appendChild(defs);
 
             // Draw hexagons
             gameState.gridCoords.forEach(({ q, r }) => {
@@ -972,16 +1224,30 @@
                 // Create polygon
                 const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
                 polygon.setAttribute('points', getHexPoints(x, y, gameState.hexSize));
-                polygon.setAttribute('stroke', isWinning ? '#059669' : '#9ca3af');
-                polygon.setAttribute('stroke-width', '2');
+                if (isWinning) {
+                    polygon.setAttribute('stroke', '#00ff88');
+                    polygon.setAttribute('stroke-width', '3');
+                } else {
+                    polygon.setAttribute('stroke', '#0096ff');
+                    polygon.setAttribute('stroke-width', '2');
+                }
                 
                 if (isWinning) {
-                    polygon.setAttribute('fill', '#10b981');
+                    polygon.setAttribute('fill', 'rgba(0, 255, 136, 0.3)');
+                    polygon.classList.add('winning-cell');
+                    // Add animation delay based on position in winning line for wave effect
+                    const winningIndex = gameState.winningLine.findIndex(cell => cell.q === q && cell.r === r);
+                    if (winningIndex !== -1 && gameState.winningLine.length > 0) {
+                        // Create a wave effect - each cell lights up in sequence
+                        const totalCells = gameState.winningLine.length;
+                        const delay = (winningIndex * (1.5 / totalCells)) % 1.5;
+                        polygon.style.animationDelay = `${delay}s`;
+                    }
                 } else if (player) {
-                    polygon.setAttribute('fill', '#e0e7ff');
+                    polygon.setAttribute('fill', 'rgba(10, 20, 40, 0.6)');
                     polygon.classList.add('occupied');
                 } else {
-                    polygon.setAttribute('fill', '#f3f4f6');
+                    polygon.setAttribute('fill', 'rgba(15, 25, 40, 0.3)');
                     polygon.classList.add('empty');
                 }
                 
@@ -1005,17 +1271,64 @@
                 
                 // Add player mark
                 if (player) {
-                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                    text.setAttribute('x', x);
-                    text.setAttribute('y', y);
-                    text.setAttribute('text-anchor', 'middle');
-                    text.setAttribute('dominant-baseline', 'middle');
-                    text.setAttribute('font-size', gameState.hexSize);
-                    text.setAttribute('font-weight', 'bold');
-                    text.setAttribute('fill', isWinning ? '#ffffff' : (player === 'X' ? '#3b82f6' : '#ef4444'));
-                    text.setAttribute('pointer-events', 'none');
-                    text.textContent = player;
-                    g.appendChild(text);
+                    const markGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                    markGroup.setAttribute('pointer-events', 'none');
+                    
+                    if (player === 'X') {
+                        // Draw X as two crossing lines
+                        const size = gameState.hexSize * 0.4;
+                        const line1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        line1.setAttribute('x1', x - size);
+                        line1.setAttribute('y1', y - size);
+                        line1.setAttribute('x2', x + size);
+                        line1.setAttribute('y2', y + size);
+                        line1.setAttribute('stroke-width', '4');
+                        line1.setAttribute('stroke-linecap', 'round');
+                        
+                        const line2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        line2.setAttribute('x1', x - size);
+                        line2.setAttribute('y1', y + size);
+                        line2.setAttribute('x2', x + size);
+                        line2.setAttribute('y2', y - size);
+                        line2.setAttribute('stroke-width', '4');
+                        line2.setAttribute('stroke-linecap', 'round');
+                        
+                        if (isWinning) {
+                            line1.setAttribute('stroke', '#ffffff');
+                            line1.setAttribute('filter', 'url(#glow-white)');
+                            line2.setAttribute('stroke', '#ffffff');
+                            line2.setAttribute('filter', 'url(#glow-white)');
+                        } else {
+                            line1.setAttribute('stroke', '#0096ff');
+                            line1.setAttribute('filter', 'url(#glow-blue)');
+                            line2.setAttribute('stroke', '#0096ff');
+                            line2.setAttribute('filter', 'url(#glow-blue)');
+                        }
+                        
+                        markGroup.appendChild(line1);
+                        markGroup.appendChild(line2);
+                    } else {
+                        // Draw O as a circle
+                        const radius = gameState.hexSize * 0.35;
+                        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                        circle.setAttribute('cx', x);
+                        circle.setAttribute('cy', y);
+                        circle.setAttribute('r', radius);
+                        circle.setAttribute('fill', 'none');
+                        circle.setAttribute('stroke-width', '4');
+                        
+                        if (isWinning) {
+                            circle.setAttribute('stroke', '#ffffff');
+                            circle.setAttribute('filter', 'url(#glow-white)');
+                        } else {
+                            circle.setAttribute('stroke', '#ff3366');
+                            circle.setAttribute('filter', 'url(#glow-red)');
+                        }
+                        
+                        markGroup.appendChild(circle);
+                    }
+                    
+                    g.appendChild(markGroup);
                 }
                 
                 canvas.appendChild(g);
