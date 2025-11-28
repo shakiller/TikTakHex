@@ -899,7 +899,14 @@ class HexagonalTicTacToe {
         this.updateDifficultyInfo();
         
         if (this.isOnline && this.isHost) {
+            // Отправляем настройки второму игроку
+            this.sendGameSettings();
+            // Отправляем команду сброса и новое состояние
             this.sendData({ type: 'reset' });
+            // Отправляем новое состояние игры с обновленными настройками
+            setTimeout(() => {
+                this.sendGameState();
+            }, 100);
         }
         
         this.initializeGame();
@@ -1734,6 +1741,10 @@ class HexagonalTicTacToe {
             this.setupConnection();
             this.waitingForConnection = false;
             this.updateConnectionStatus('Игрок подключен! Начинаем игру...', 'success');
+            // Отправляем настройки сразу при подключении
+            setTimeout(() => {
+                this.sendGameSettings();
+            }, 200);
             this.startOnlineGame();
             this.startAutoSync();
         });
@@ -1785,7 +1796,7 @@ class HexagonalTicTacToe {
         this.connection.on('open', () => {
             this.updateConnectionStatus('Подключено!', 'success');
             if (!this.isHost) {
-                // Запрос текущего состояния у хоста
+                // Запрос текущего состояния у хоста (включая настройки)
                 setTimeout(() => {
                     this.sendData({ type: 'request_state' });
                 }, 500);
@@ -1815,6 +1826,11 @@ class HexagonalTicTacToe {
                 this.applyGameState(data);
                 break;
                 
+            case 'game_settings':
+                // Применяем только настройки (размер доски и длина линии)
+                this.applyGameSettings(data);
+                break;
+                
             case 'move':
                 this.applyMove(data);
                 break;
@@ -1834,13 +1850,99 @@ class HexagonalTicTacToe {
                 break;
         }
     }
+    
+    // Отправка настроек игры
+    sendGameSettings() {
+        const settings = {
+            type: 'game_settings',
+            boardSize: this.boardSize,
+            winLength: this.winLength
+        };
+        
+        this.sendData(settings);
+        console.log("Настройки игры отправлены:", settings);
+    }
+    
+    // Применение настроек игры
+    applyGameSettings(data) {
+        let settingsChanged = false;
+        
+        if (data.boardSize && data.boardSize !== this.boardSize) {
+            this.boardSize = data.boardSize;
+            const boardSizeSelect = document.getElementById('boardSizeSelect');
+            if (boardSizeSelect) {
+                boardSizeSelect.value = this.boardSize;
+            }
+            settingsChanged = true;
+        }
+        
+        if (data.winLength && data.winLength !== this.winLength) {
+            this.winLength = data.winLength;
+            const winLengthSelect = document.getElementById('winLengthSelect');
+            if (winLengthSelect) {
+                winLengthSelect.value = this.winLength;
+            }
+            settingsChanged = true;
+        }
+        
+        if (settingsChanged) {
+            // Обновляем информацию о сложности
+            this.updateDifficultyInfo();
+            // Обновляем размер canvas
+            this.updateCanvasSize();
+            // Пересоздаем игру с новыми настройками
+            this.initializeGame();
+            this.updateConnectionStatus("Настройки поля синхронизированы", "success");
+        }
+    }
 
     // ПРИМЕНЕНИЕ СОСТОЯНИЯ ИГРЫ
     applyGameState(data) {
-        this.board = data.board.map(row => [...row]);
-        this.currentPlayer = data.currentPlayer;
-        this.scores = {...data.scores};
-        this.gameOver = data.gameOver;
+        let settingsChanged = false;
+        
+        // Применяем настройки поля, если они переданы и отличаются от текущих
+        if (data.boardSize && data.boardSize !== this.boardSize) {
+            this.boardSize = data.boardSize;
+            // Обновляем селект размера поля
+            const boardSizeSelect = document.getElementById('boardSizeSelect');
+            if (boardSizeSelect) {
+                boardSizeSelect.value = this.boardSize;
+            }
+            settingsChanged = true;
+        }
+        
+        if (data.winLength && data.winLength !== this.winLength) {
+            this.winLength = data.winLength;
+            // Обновляем селект длины линии
+            const winLengthSelect = document.getElementById('winLengthSelect');
+            if (winLengthSelect) {
+                winLengthSelect.value = this.winLength;
+            }
+            settingsChanged = true;
+        }
+        
+        // Если настройки изменились, обновляем UI
+        if (settingsChanged) {
+            this.updateDifficultyInfo();
+            this.updateCanvasSize();
+        }
+        
+        // Применяем доску (если она передана)
+        if (data.board) {
+            this.board = data.board.map(row => [...row]);
+        }
+        
+        if (data.currentPlayer !== undefined) {
+            this.currentPlayer = data.currentPlayer;
+        }
+        
+        if (data.scores) {
+            this.scores = {...data.scores};
+        }
+        
+        if (data.gameOver !== undefined) {
+            this.gameOver = data.gameOver;
+        }
         
         if (data.winningLine) {
             this.winningLine = data.winningLine;
@@ -1851,6 +1953,7 @@ class HexagonalTicTacToe {
         this.drawBoard();
         this.updatePlayerDisplay();
         this.updateScores();
+        this.updateDebugInfo();
         
         if (this.gameOver && this.winningLine) {
             this.winMessage.classList.add('show');
@@ -1859,7 +1962,11 @@ class HexagonalTicTacToe {
         }
         
         console.log("Состояние игры синхронизировано");
-        this.updateConnectionStatus("Игра синхронизирована", "success");
+        if (settingsChanged) {
+            this.updateConnectionStatus("Настройки и игра синхронизированы", "success");
+        } else {
+            this.updateConnectionStatus("Игра синхронизирована", "success");
+        }
     }
 
     // ПРИМЕНЕНИЕ ХОДА
@@ -1900,7 +2007,9 @@ class HexagonalTicTacToe {
             currentPlayer: this.currentPlayer,
             scores: {...this.scores},
             gameOver: this.gameOver,
-            winningLine: this.winningLine
+            winningLine: this.winningLine,
+            boardSize: this.boardSize,
+            winLength: this.winLength
         };
         
         this.sendData(gameState);
